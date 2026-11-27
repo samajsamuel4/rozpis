@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const LEAVE_TYPES: LeaveType[] = ["free_day", "vacation"];
 
 export async function POST(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const body = (await request.json()) as {
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const body = (await request.json()) as {
