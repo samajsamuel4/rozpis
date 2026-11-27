@@ -17,13 +17,13 @@ export async function POST(request: NextRequest) {
   };
   if (!body.person_id || !body.start_date || !body.end_date) {
     return NextResponse.json(
-      { error: "Osoba a obdobie sú povinné" },
+      { error: "Person und Zeitraum sind Pflicht" },
       { status: 400 },
     );
   }
   if (body.end_date < body.start_date) {
     return NextResponse.json(
-      { error: "Koniec musí byť po začiatku" },
+      { error: "Ende muss nach dem Start liegen" },
       { status: 400 },
     );
   }
@@ -46,10 +46,10 @@ export async function PATCH(request: NextRequest) {
     status?: "pending" | "approved" | "cancelled";
   };
   if (!body.id || !body.status) {
-    return NextResponse.json({ error: "Chýba id alebo stav" }, { status: 400 });
+    return NextResponse.json({ error: "ID oder Status fehlt" }, { status: 400 });
   }
   if (!["pending", "approved", "cancelled"].includes(body.status)) {
-    return NextResponse.json({ error: "Neplatný stav" }, { status: 400 });
+    return NextResponse.json({ error: "Ungültiger Status" }, { status: 400 });
   }
   const rows = await sql<LeaveRequest>(
     `update leave_requests set status = $2
@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest) {
     [body.id, body.status],
   );
   if (!rows[0]) {
-    return NextResponse.json({ error: "Nenájdené" }, { status: 404 });
+    return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
   }
   return NextResponse.json(rows[0]);
 }

@@ -1,26 +1,27 @@
-const SK_MONTHS = [
-  "január",
-  "február",
-  "marec",
-  "apríl",
-  "máj",
-  "jún",
-  "júl",
-  "august",
-  "september",
-  "október",
-  "november",
-  "december",
+/** Österreichische Monatsnamen (Jänner!). */
+const AT_MONTHS = [
+  "Jänner",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
 ];
 
-const SK_WEEKDAYS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"];
+const AT_WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 export function monthTitle(year: number, month: number): string {
-  return `${SK_MONTHS[month]} ${year}`;
+  return `${AT_MONTHS[month]} ${year}`;
 }
 
 export function weekdayLabels(): string[] {
-  return SK_WEEKDAYS;
+  return AT_WEEKDAYS;
 }
 
 export function toISODate(d: Date): string {
@@ -71,11 +72,15 @@ export function calendarCells(
 }
 
 export function formatShortRange(start: string, end: string): string {
-  if (start === end) return formatDaySk(start);
-  return `${formatDaySk(start)} – ${formatDaySk(end)}`;
+  if (start === end) return formatDayAt(start);
+  return `${formatDayAt(start)} – ${formatDayAt(end)}`;
 }
 
 export function formatDaySk(iso: string): string {
+  return formatDayAt(iso);
+}
+
+export function formatDayAt(iso: string): string {
   const [y, m, d] = asDay(iso).split("-");
   return `${Number(d)}.${Number(m)}.${y}`;
 }

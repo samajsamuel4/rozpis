@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   asDay,
   calendarCells,
-  formatDaySk,
+  formatDayAt,
   formatShortRange,
   monthTitle,
   toISODate,
@@ -21,10 +21,10 @@ type Modal =
   | { type: "people" }
   | null;
 
-const STATUS_SK: Record<LeaveRequest["status"], string> = {
-  pending: "Čaká",
-  approved: "Schválené",
-  cancelled: "Zrušené",
+const STATUS_AT: Record<LeaveRequest["status"], string> = {
+  pending: "Offen",
+  approved: "Genehmigt",
+  cancelled: "Storniert",
 };
 
 function parseLocalDay(iso: string): Date {
@@ -53,11 +53,11 @@ export default function RozpisApp() {
       const res = await fetch(`/api/state?year=${y}&month=${m}`, {
         cache: "no-store",
       });
-      if (!res.ok) throw new Error("Nepodarilo sa načítať rozpis");
+      if (!res.ok) throw new Error("Dienstplan konnte nicht geladen werden");
       const data = (await res.json()) as AppState;
       setState(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba načítania");
+      setError(e instanceof Error ? e.message : "Ladefehler");
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ export default function RozpisApp() {
   function unlockEditing(code: string) {
     const trimmed = code.trim();
     if (!trimmed) {
-      setError("Zadajte editačný kód");
+      setError("Bitte Bearbeitungscode eingeben");
       return;
     }
     setEditCode(trimmed);
@@ -116,7 +116,7 @@ export default function RozpisApp() {
 
   async function requireUnlock(): Promise<boolean> {
     if (unlocked && editCode) return true;
-    setError("Najprv odomknite úpravy tímovým kódom");
+    setError("Zuerst mit dem Team-Code freischalten");
     return false;
   }
 
@@ -182,11 +182,12 @@ export default function RozpisApp() {
         headers: mutateHeaders(),
         body: JSON.stringify(input),
       });
-      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa uložiť zmenu"));
+      if (!res.ok)
+        throw new Error(await readApiError(res, "Schicht konnte nicht gespeichert werden"));
       await load(year, month);
       setModal(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba");
+      setError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
@@ -200,10 +201,11 @@ export default function RozpisApp() {
         method: "DELETE",
         headers: { "x-edit-code": editCode },
       });
-      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa zmazať zmenu"));
+      if (!res.ok)
+        throw new Error(await readApiError(res, "Schicht konnte nicht gelöscht werden"));
       await load(year, month);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba");
+      setError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
@@ -224,21 +226,20 @@ export default function RozpisApp() {
         body: JSON.stringify(input),
       });
       if (!res.ok) {
-        throw new Error(await readApiError(res, "Nepodarilo sa požiadať o voľno"));
+        throw new Error(
+          await readApiError(res, "Urlaubsantrag konnte nicht gesendet werden"),
+        );
       }
       await load(year, month);
       setModal(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba");
+      setError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
   }
 
-  async function setLeaveStatus(
-    id: number,
-    status: LeaveRequest["status"],
-  ) {
+  async function setLeaveStatus(id: number, status: LeaveRequest["status"]) {
     if (!(await requireUnlock())) return;
     setBusy(true);
     try {
@@ -247,10 +248,11 @@ export default function RozpisApp() {
         headers: mutateHeaders(),
         body: JSON.stringify({ id, status }),
       });
-      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa zmeniť stav"));
+      if (!res.ok)
+        throw new Error(await readApiError(res, "Status konnte nicht geändert werden"));
       await load(year, month);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba");
+      setError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
@@ -265,12 +267,13 @@ export default function RozpisApp() {
         headers: mutateHeaders(),
         body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa pridať kolegu"));
+      if (!res.ok)
+        throw new Error(await readApiError(res, "Kollege konnte nicht hinzugefügt werden"));
       const person = (await res.json()) as Person;
       await load(year, month);
       pickWho(person.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba");
+      setError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
@@ -285,17 +288,22 @@ export default function RozpisApp() {
         headers: mutateHeaders(),
         body: JSON.stringify({ id, name }),
       });
-      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa upraviť meno"));
+      if (!res.ok)
+        throw new Error(await readApiError(res, "Name konnte nicht geändert werden"));
       await load(year, month);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba");
+      setError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
   }
 
   async function removePerson(id: number) {
-    if (!confirm("Naozaj zmazať tohto kolegu a všetky jeho zmeny/voľná?")) {
+    if (
+      !confirm(
+        "Diesen Kollegen wirklich löschen – inklusive aller Schichten und Urlaube?",
+      )
+    ) {
       return;
     }
     if (!(await requireUnlock())) return;
@@ -305,10 +313,11 @@ export default function RozpisApp() {
         method: "DELETE",
         headers: { "x-edit-code": editCode },
       });
-      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa zmazať"));
+      if (!res.ok)
+        throw new Error(await readApiError(res, "Löschen fehlgeschlagen"));
       await load(year, month);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba");
+      setError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
@@ -319,47 +328,37 @@ export default function RozpisApp() {
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-3 pb-10 pt-4 sm:px-6 sm:pt-8">
-      <header className="anim-rise mb-5 sm:mb-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-soft)]">
-          Tímový kalendár
+      <header className="anim-rise mb-5 sm:mb-7">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-soft)]">
+          Restaurant Fitz · Team
         </p>
-        <h1 className="brand-title text-[clamp(2.6rem,12vw,5.2rem)] text-[var(--spruce)]">
-          Rozpis
-        </h1>
-        <p className="mt-3 max-w-xl text-[0.98rem] leading-relaxed text-[var(--ink-soft)] sm:text-base">
-          Kto má zmenu, kto má voľno — spoločný rozpis pre celý tím. Otvorte
-          odkaz kedykoľvek, aj z telefónu.
-        </p>
+        <h1 className="brand-title text-[clamp(2.8rem,13vw,5.4rem)]">Rozpis</h1>
 
         {state?.sampleMode ? (
-          <div className="mt-4 inline-flex items-center rounded-full border border-[var(--amber)]/40 bg-[color-mix(in_srgb,var(--amber)_14%,white)] px-3 py-1.5 text-sm font-semibold text-[var(--amber-deep)]">
-            Ukážkové dáta (lokálny režim)
+          <div className="mt-4 inline-flex items-center rounded-xl border border-[var(--gold)]/35 bg-[color-mix(in_srgb,var(--gold)_18%,transparent)] px-3 py-1.5 text-sm font-semibold text-[var(--gold)]">
+            Beispieldaten (lokal)
           </div>
         ) : null}
       </header>
 
-      <section className="anim-rise mb-4 rounded-2xl border border-[var(--line)] bg-white/55 p-3 sm:p-4">
+      <section className="anim-rise surface mb-4 p-3 sm:p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
-              Úpravy
+              Bearbeitung
             </p>
             <p className="mt-1 text-sm text-[var(--ink-soft)]">
-              Kalendár je na čítanie pre každého. Zmeny, voľno a kolegovia
-              vyžadujú tímový editačný kód od správcu (Cursor Secrets).
+              Kalender ist für alle lesbar. Schichten, Urlaub und Kollegen brauchen
+              den Team-Code.
             </p>
           </div>
           {unlocked ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-[color-mix(in_srgb,var(--spruce-mid)_16%,white)] px-3 py-1.5 text-sm font-semibold text-[var(--spruce)]">
-                Úpravy odomknuté
+              <span className="rounded-xl bg-[color-mix(in_srgb,var(--teal)_22%,transparent)] px-3 py-1.5 text-sm font-semibold text-[var(--teal)]">
+                Freigeschaltet
               </span>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={lockEditing}
-              >
-                Zamknúť
+              <button type="button" className="btn btn-ghost" onClick={lockEditing}>
+                Sperren
               </button>
             </div>
           ) : (
@@ -374,13 +373,13 @@ export default function RozpisApp() {
                 className="field min-w-0 sm:w-44"
                 type="password"
                 autoComplete="off"
-                placeholder="Editačný kód"
+                placeholder="Bearbeitungscode"
                 value={editDraft}
                 onChange={(e) => setEditDraft(e.target.value)}
-                aria-label="Tímový editačný kód"
+                aria-label="Team-Bearbeitungscode"
               />
               <button type="submit" className="btn btn-accent">
-                Odomknúť
+                Freischalten
               </button>
             </form>
           )}
@@ -390,17 +389,17 @@ export default function RozpisApp() {
       <section className="anim-rise mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <label className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[220px]">
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
-            Kto som
+            Wer bin ich
           </span>
           <select
             className="field"
             value={whoId ?? ""}
             onChange={(e) => pickWho(Number(e.target.value))}
-            aria-label="Vyberte, ako ktorú osobu konáte"
+            aria-label="Person auswählen"
             disabled={!state?.people.length}
           >
             {(state?.people ?? []).length === 0 ? (
-              <option value="">Najprv pridajte kolegu</option>
+              <option value="">Zuerst Kollegen anlegen</option>
             ) : (
               (state?.people ?? []).map((p) => (
                 <option key={p.id} value={p.id}>
@@ -418,7 +417,7 @@ export default function RozpisApp() {
             onClick={() => setModal({ type: "leave" })}
             disabled={!who || !unlocked}
           >
-            Požiadať o voľno
+            Urlaub beantragen
           </button>
           <button
             type="button"
@@ -426,28 +425,28 @@ export default function RozpisApp() {
             onClick={() => setModal({ type: "people" })}
             disabled={!unlocked}
           >
-            Kolegovia
+            Kollegen
           </button>
         </div>
       </section>
 
       {!loading && (state?.people.length ?? 0) === 0 ? (
-        <div className="mb-4 rounded-2xl border border-dashed border-[var(--spruce-mid)]/35 bg-white/50 px-4 py-3 text-sm text-[var(--ink-soft)]">
-          Zatiaľ nie sú žiadni kolegovia. Otvorte{" "}
+        <div className="mb-4 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--ink-soft)]">
+          Noch keine Kollegen. Öffne{" "}
           <button
             type="button"
-            className="font-semibold text-[var(--spruce)] underline"
+            className="font-semibold text-[var(--gold)] underline"
             onClick={() => setModal({ type: "people" })}
           >
-            Kolegovia
+            Kollegen
           </button>{" "}
-          a pridajte prvé meno.
+          und lege den ersten Namen an.
         </div>
       ) : null}
 
       {error ? (
         <div
-          className="mb-4 rounded-xl border border-[#7a4e4e]/30 bg-[#7a4e4e]/10 px-3 py-2 text-sm text-[#5c3030]"
+          className="mb-4 rounded-xl border border-[var(--danger)]/35 bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] px-3 py-2 text-sm text-[#ffd4d4]"
           role="alert"
         >
           {error}
@@ -456,7 +455,7 @@ export default function RozpisApp() {
             className="ml-2 underline"
             onClick={() => setError(null)}
           >
-            zatvoriť
+            schließen
           </button>
         </div>
       ) : null}
@@ -467,18 +466,18 @@ export default function RozpisApp() {
             type="button"
             className="btn btn-ghost px-3"
             onClick={() => shiftMonth(-1)}
-            aria-label="Predchádzajúci mesiac"
+            aria-label="Voriger Monat"
           >
             ←
           </button>
-          <h2 className="brand-title text-center text-xl capitalize text-[var(--spruce)] sm:text-2xl">
+          <h2 className="brand-title text-center text-xl sm:text-2xl">
             {monthTitle(year, month)}
           </h2>
           <button
             type="button"
             className="btn btn-ghost px-3"
             onClick={() => shiftMonth(1)}
-            aria-label="Nasledujúci mesiac"
+            aria-label="Nächster Monat"
           >
             →
           </button>
@@ -493,7 +492,9 @@ export default function RozpisApp() {
         <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {cells.map((cell, idx) => {
             if (!cell.date) {
-              return <div key={`e-${idx}`} className="min-h-[4.2rem] sm:min-h-[6.5rem]" />;
+              return (
+                <div key={`e-${idx}`} className="min-h-[4.2rem] sm:min-h-[6.5rem]" />
+              );
             }
             const dayShifts = shiftsByDate.get(cell.date) ?? [];
             const dayLeave = leaveByDate.get(cell.date) ?? [];
@@ -502,14 +503,14 @@ export default function RozpisApp() {
               <button
                 key={cell.date}
                 type="button"
-                className={`day-cell flex min-h-[4.2rem] flex-col rounded-xl border border-[var(--line)] bg-white/55 p-1 text-left sm:min-h-[6.5rem] sm:rounded-2xl sm:p-2 ${
-                  isToday ? "ring-2 ring-[var(--amber)]/70" : ""
+                className={`day-cell flex min-h-[4.2rem] flex-col rounded-xl border border-[var(--line)] bg-white/[0.06] p-1 text-left sm:min-h-[6.5rem] sm:rounded-2xl sm:p-2 ${
+                  isToday ? "ring-2 ring-[var(--teal)]/75" : ""
                 }`}
                 onClick={() => setModal({ type: "day", date: cell.date! })}
               >
                 <span
                   className={`mb-1 text-xs font-bold sm:text-sm ${
-                    isToday ? "text-[var(--amber-deep)]" : "text-[var(--ink)]"
+                    isToday ? "text-[var(--teal)]" : "text-[var(--ink)]"
                   }`}
                 >
                   {cell.day}
@@ -519,7 +520,7 @@ export default function RozpisApp() {
                     <span
                       key={s.id}
                       className="chip text-[0.62rem] text-white sm:text-[0.72rem]"
-                      style={{ background: s.person_color || "#2f6f5e" }}
+                      style={{ background: s.person_color || "#1a8f84" }}
                       title={`${s.person_name} ${s.start_time}–${s.end_time}`}
                     >
                       <span className="hidden sm:inline">
@@ -535,15 +536,16 @@ export default function RozpisApp() {
                       key={`l-${l.id}`}
                       className="chip text-[0.62rem] text-[var(--leave)] sm:text-[0.7rem]"
                       style={{
-                        background: "color-mix(in srgb, var(--leave) 16%, white)",
+                        background:
+                          "color-mix(in srgb, var(--leave) 18%, transparent)",
                       }}
-                      title={`${l.person_name}: voľno (${STATUS_SK[l.status]})`}
+                      title={`${l.person_name}: Urlaub (${STATUS_AT[l.status]})`}
                     >
                       <span className="hidden sm:inline">
-                        {l.person_name?.split(" ")[0]} voľno
+                        {l.person_name?.split(" ")[0]} Urlaub
                       </span>
                       <span className="sm:hidden">
-                        {(l.person_name ?? "?").slice(0, 1)}+V
+                        {(l.person_name ?? "?").slice(0, 1)}+U
                       </span>
                     </span>
                   ))}
@@ -558,38 +560,32 @@ export default function RozpisApp() {
           })}
         </div>
         {loading ? (
-          <p className="mt-3 text-sm text-[var(--ink-soft)]">Načítavam…</p>
+          <p className="mt-3 text-sm text-[var(--ink-soft)]">Lade…</p>
         ) : null}
       </section>
 
       <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
-        <h3 className="brand-title mb-1 text-xl text-[var(--spruce)]">
-          Žiadosti o voľno
-        </h3>
-        <p className="mb-4 text-sm text-[var(--ink-soft)]">
-          Prehľad žiadostí v tomto mesiaci. Schválenie alebo zrušenie môže
-          urobiť ktokoľvek s odkazom.
-        </p>
+        <h3 className="brand-title mb-3 text-xl">Urlaubsanträge</h3>
         <ul className="flex flex-col gap-3">
           {(state?.leave ?? []).length === 0 ? (
             <li className="text-sm text-[var(--ink-soft)]">
-              Zatiaľ žiadne žiadosti.
+              Noch keine Anträge in diesem Monat.
             </li>
           ) : (
             (state?.leave ?? []).map((l) => (
               <li
                 key={l.id}
-                className="flex flex-col gap-2 rounded-2xl border border-[var(--line)] bg-white/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-2xl border border-[var(--line)] bg-white/[0.05] p-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <div className="flex items-center gap-2">
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ background: l.person_color || "#7a4e4e" }}
+                      style={{ background: l.person_color || "#e8a0a0" }}
                     />
                     <strong>{l.person_name}</strong>
-                    <span className="rounded-full bg-[var(--mist)] px-2 py-0.5 text-xs font-semibold text-[var(--ink-soft)]">
-                      {STATUS_SK[l.status]}
+                    <span className="rounded-lg bg-white/10 px-2 py-0.5 text-xs font-semibold text-[var(--ink-soft)]">
+                      {STATUS_AT[l.status]}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-[var(--ink-soft)]">
@@ -602,20 +598,20 @@ export default function RozpisApp() {
                     <button
                       type="button"
                       className="btn btn-primary px-3 py-2 text-sm"
-                      disabled={busy}
+                      disabled={busy || !unlocked}
                       onClick={() => void setLeaveStatus(l.id, "approved")}
                     >
-                      Schváliť
+                      Genehmigen
                     </button>
                   ) : null}
                   {l.status !== "cancelled" ? (
                     <button
                       type="button"
                       className="btn btn-ghost px-3 py-2 text-sm"
-                      disabled={busy}
+                      disabled={busy || !unlocked}
                       onClick={() => void setLeaveStatus(l.id, "cancelled")}
                     >
-                      Zrušiť
+                      Stornieren
                     </button>
                   ) : null}
                 </div>
@@ -714,12 +710,10 @@ function DayModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="day-title" className="brand-title text-2xl text-[var(--spruce)]">
-              Deň {formatDaySk(date)}
+            <h3 id="day-title" className="brand-title text-2xl">
+              Tag {formatDayAt(date)}
             </h3>
-            <p className="text-sm text-[var(--ink-soft)]">
-              Nastavte alebo upravte pracovnú zmenu.
-            </p>
+            <p className="text-sm text-[var(--ink-soft)]">Schicht setzen oder ändern.</p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
             ✕
@@ -731,7 +725,7 @@ function DayModal({
             {shifts.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/70 px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/[0.05] px-3 py-2 text-sm"
               >
                 <span>
                   <strong style={{ color: s.person_color }}>{s.person_name}</strong>{" "}
@@ -744,23 +738,23 @@ function DayModal({
                   onClick={() => onDeleteShift(s.id)}
                   disabled={busy}
                 >
-                  Zmazať
+                  Löschen
                 </button>
               </div>
             ))}
             {leave.map((l) => (
               <div
                 key={l.id}
-                className="rounded-xl border border-[var(--leave)]/20 bg-[color-mix(in_srgb,var(--leave)_8%,white)] px-3 py-2 text-sm"
+                className="rounded-xl border border-[var(--leave)]/25 bg-[color-mix(in_srgb,var(--leave)_12%,transparent)] px-3 py-2 text-sm"
               >
-                <strong>{l.person_name}</strong> — voľno ({STATUS_SK[l.status]})
+                <strong>{l.person_name}</strong> — Urlaub ({STATUS_AT[l.status]})
                 {l.note ? ` · ${l.note}` : ""}
               </div>
             ))}
           </div>
         ) : (
           <p className="mb-4 text-sm text-[var(--ink-soft)]">
-            Zatiaľ žiadne zmeny ani voľno.
+            Noch keine Schichten oder Urlaub.
           </p>
         )}
 
@@ -778,7 +772,7 @@ function DayModal({
           }}
         >
           <label className="block text-sm font-semibold">
-            Osoba
+            Person
             <select
               className="field mt-1"
               value={personId}
@@ -793,7 +787,7 @@ function DayModal({
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm font-semibold">
-              Od
+              Von
               <input
                 className="field mt-1"
                 type="time"
@@ -803,7 +797,7 @@ function DayModal({
               />
             </label>
             <label className="block text-sm font-semibold">
-              Do
+              Bis
               <input
                 className="field mt-1"
                 type="time"
@@ -814,20 +808,24 @@ function DayModal({
             </label>
           </div>
           <label className="block text-sm font-semibold">
-            Poznámka
+            Notiz
             <input
               className="field mt-1"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="voliteľné"
+              placeholder="optional"
             />
           </label>
           <div className="flex flex-wrap gap-2 pt-1">
-            <button type="submit" className="btn btn-primary" disabled={busy || !personId}>
-              Uložiť zmenu
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={busy || !personId}
+            >
+              Schicht speichern
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose}>
-              Zavrieť
+              Schließen
             </button>
           </div>
         </form>
@@ -871,11 +869,11 @@ function LeaveModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="leave-title" className="brand-title text-2xl text-[var(--spruce)]">
-              Požiadať o voľno
+            <h3 id="leave-title" className="brand-title text-2xl">
+              Urlaub beantragen
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
-              Vyberte obdobie. Stav bude „Čaká“ kým niekto neschváli.
+              Zeitraum wählen. Status bleibt „Offen“, bis jemand genehmigt.
             </p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
@@ -895,7 +893,7 @@ function LeaveModal({
           }}
         >
           <label className="block text-sm font-semibold">
-            Za koho
+            Für wen
             <select
               className="field mt-1"
               value={personId}
@@ -910,7 +908,7 @@ function LeaveModal({
           </label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm font-semibold">
-              Od
+              Von
               <input
                 className="field mt-1"
                 type="date"
@@ -920,7 +918,7 @@ function LeaveModal({
               />
             </label>
             <label className="block text-sm font-semibold">
-              Do
+              Bis
               <input
                 className="field mt-1"
                 type="date"
@@ -931,20 +929,20 @@ function LeaveModal({
             </label>
           </div>
           <label className="block text-sm font-semibold">
-            Poznámka
+            Notiz
             <textarea
               className="field mt-1 min-h-[88px] resize-y"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="voliteľné"
+              placeholder="optional"
             />
           </label>
           <div className="flex flex-wrap gap-2 pt-1">
             <button type="submit" className="btn btn-accent" disabled={busy}>
-              Odoslať žiadosť
+              Antrag senden
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose}>
-              Zavrieť
+              Schließen
             </button>
           </div>
         </form>
@@ -983,11 +981,11 @@ function PeopleModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="people-title" className="brand-title text-2xl text-[var(--spruce)]">
-              Kolegovia
+            <h3 id="people-title" className="brand-title text-2xl">
+              Kollegen
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
-              Pridajte alebo upravte mená v rozpise.
+              Namen im Dienstplan hinzufügen oder ändern.
             </p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
@@ -999,7 +997,7 @@ function PeopleModal({
           {people.map((p) => (
             <li
               key={p.id}
-              className="flex flex-col gap-2 rounded-xl border border-[var(--line)] bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 rounded-xl border border-[var(--line)] bg-white/[0.05] p-3 sm:flex-row sm:items-center sm:justify-between"
             >
               {editing === p.id ? (
                 <form
@@ -1016,15 +1014,19 @@ function PeopleModal({
                     autoFocus
                   />
                   <div className="flex gap-2">
-                    <button type="submit" className="btn btn-primary px-3 py-2 text-sm" disabled={busy}>
-                      Uložiť
+                    <button
+                      type="submit"
+                      className="btn btn-primary px-3 py-2 text-sm"
+                      disabled={busy}
+                    >
+                      Speichern
                     </button>
                     <button
                       type="button"
                       className="btn btn-ghost px-3 py-2 text-sm"
                       onClick={() => setEditing(null)}
                     >
-                      Späť
+                      Zurück
                     </button>
                   </div>
                 </form>
@@ -1046,7 +1048,7 @@ function PeopleModal({
                         setEditName(p.name);
                       }}
                     >
-                      Upraviť
+                      Ändern
                     </button>
                     <button
                       type="button"
@@ -1054,7 +1056,7 @@ function PeopleModal({
                       disabled={busy}
                       onClick={() => void onRemove(p.id)}
                     >
-                      Zmazať
+                      Löschen
                     </button>
                   </div>
                 </>
@@ -1074,12 +1076,16 @@ function PeopleModal({
         >
           <input
             className="field"
-            placeholder="Nové meno"
+            placeholder="Neuer Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>
-            Pridať
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy || !name.trim()}
+          >
+            Hinzufügen
           </button>
         </form>
       </div>
