@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   };
   if (!body.person_id || !body.work_date) {
     return NextResponse.json(
-      { error: "Osoba a dátum sú povinné" },
+      { error: "Person und Datum sind Pflicht" },
       { status: 400 },
     );
   }
@@ -60,5 +60,5 @@ export async function DELETE(request: NextRequest) {
     );
     return new NextResponse(null, { status: 204 });
   }
-  return NextResponse.json({ error: "Chýba id alebo osoba+dátum" }, { status: 400 });
+  return NextResponse.json({ error: "ID fehlt alebo osoba+dátum" }, { status: 400 });
 }

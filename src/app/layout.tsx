@@ -1,23 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree, Syne } from "next/font/google";
+import { Bricolage_Grotesque, Manrope } from "next/font/google";
 import "./globals.css";
 
-const syne = Syne({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-syne",
+  variable: "--font-bricolage",
   weight: ["600", "700", "800"],
 });
 
-const figtree = Figtree({
+const manrope = Manrope({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-figtree",
+  variable: "--font-manrope",
   weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Rozpis — tímový pracovný kalendár",
+  title: "Rozpis — Team-Dienstplan",
   description:
-    "Spoločný rozpis zmien a žiadostí o voľno. Otvorte kedykoľvek z telefónu alebo počítača.",
+    "Gemeinsamer Schichtplan und Urlaubsanträge für Restaurant Fitz.",
 };
 
 export const viewport: Viewport = {
@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#1f4d3a",
+  themeColor: "#120e0c",
 };
 
 export default function RootLayout({
@@ -34,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="sk">
-      <body className={`${syne.variable} ${figtree.variable} antialiased`}>
+    <html lang="de-AT">
+      <body className={`${bricolage.variable} ${manrope.variable} antialiased`}>
         {children}
       </body>
     </html>

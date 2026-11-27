@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as { name?: string; color?: string };
   const name = body.name?.trim() ?? "";
   if (!name) {
-    return NextResponse.json({ error: "Meno je povinné" }, { status: 400 });
+    return NextResponse.json({ error: "Name ist Pflicht" }, { status: 400 });
   }
   const count = await sql<{ c: number }>("select count(*)::int as c from people");
   const color =
@@ -53,12 +53,12 @@ export async function PATCH(request: NextRequest) {
     color?: string;
   };
   if (!body.id) {
-    return NextResponse.json({ error: "Chýba id" }, { status: 400 });
+    return NextResponse.json({ error: "ID fehlt" }, { status: 400 });
   }
   const name = body.name?.trim();
   const color = body.color?.trim();
   if (!name && !color) {
-    return NextResponse.json({ error: "Nie je čo upraviť" }, { status: 400 });
+    return NextResponse.json({ error: "Nichts zu ändern" }, { status: 400 });
   }
   const rows = await sql<Person>(
     `update people set
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
     [body.id, name ?? null, color ?? null],
   );
   if (!rows[0]) {
-    return NextResponse.json({ error: "Nenájdené" }, { status: 404 });
+    return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
   }
   return NextResponse.json(rows[0]);
 }
@@ -80,7 +80,7 @@ export async function DELETE(request: NextRequest) {
 
   const id = Number(request.nextUrl.searchParams.get("id"));
   if (!id) {
-    return NextResponse.json({ error: "Chýba id" }, { status: 400 });
+    return NextResponse.json({ error: "ID fehlt" }, { status: 400 });
   }
   await sql("delete from people where id = $1", [id]);
   return new NextResponse(null, { status: 204 });

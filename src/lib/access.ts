@@ -41,7 +41,7 @@ export function assertSameOrigin(
   const site = request.headers.get("sec-fetch-site");
   if (site === "cross-site") {
     return NextResponse.json(
-      { error: "Zakázaný cross-site požiadavok" },
+      { error: "Cross-Site-Anfrage verboten" },
       { status: 403 },
     );
   }
@@ -67,7 +67,7 @@ export function assertSameOrigin(
     }
   } catch {
     return NextResponse.json(
-      { error: "Zakázaný pôvod požiadavky" },
+      { error: "Anfrage-Ursprung verboten" },
       { status: 403 },
     );
   }
@@ -89,7 +89,7 @@ export function assertCanMutate(
     return NextResponse.json(
       {
         error:
-          "Úpravy nie sú zapnuté: chýba EDIT_CODE v nastavení aplikácie.",
+          "Bearbeitung deaktiviert: EDIT_CODE fehlt in den App-Einstellungen.",
       },
       { status: 503 },
     );
@@ -101,7 +101,7 @@ export function assertCanMutate(
     return NextResponse.json(
       {
         error:
-          "Na úpravy zadajte tímový editačný kód (hlavička X-Edit-Code).",
+          "Für Änderungen Team-Code senden (Header X-Edit-Code).",
       },
       { status: 401 },
     );
