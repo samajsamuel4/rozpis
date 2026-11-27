@@ -43,16 +43,17 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   background-color: #0c0a09;
+  /* Light veil only — keep the photo sharp and readable */
   background-image:
     linear-gradient(
       180deg,
-      rgba(8, 6, 5, 0.35) 0%,
-      rgba(10, 8, 7, 0.58) 45%,
-      rgba(6, 5, 4, 0.86) 100%
+      rgba(8, 6, 5, 0.18) 0%,
+      rgba(8, 6, 5, 0.28) 48%,
+      rgba(6, 5, 4, 0.62) 100%
     ),
-    url("/fitz-exterior.jpg");
+    url("/fitz-bg.jpg");
   background-size: cover;
-  background-position: center 30%;
+  background-position: center center;
   background-attachment: scroll;
   background-repeat: no-repeat;
   -webkit-tap-highlight-color: transparent;
@@ -114,8 +115,8 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .gate-shell {
