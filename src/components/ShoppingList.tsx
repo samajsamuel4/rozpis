@@ -26,6 +26,9 @@ export default function ShoppingList({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [category, setCategory] = useState<ShoppingCategory>("fresh");
   const [draft, setDraft] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
 
   const headers = useCallback((): HeadersInit => {
     return {
@@ -160,6 +163,53 @@ export default function ShoppingList({
     }
   }
 
+  function zettelText() {
+    return [
+      "Einkaufsliste — Fitz",
+      ...selected.map((item) => `• ${item.label}`),
+    ].join("\n");
+  }
+
+  async function copyZettel() {
+    if (selected.length === 0) return;
+    const text = zettelText();
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.left = "-9999px";
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        document.body.removeChild(area);
+      }
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("error");
+      onError("Kopieren fehlgeschlagen");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    }
+  }
+
+  async function shareZettel() {
+    if (selected.length === 0) return;
+    const text = zettelText();
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "Einkaufsliste", text });
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+      }
+    }
+    await copyZettel();
+  }
+
   if (!open) return null;
 
   return (
@@ -198,19 +248,41 @@ export default function ShoppingList({
               Noch nichts ausgewählt. Tippe unten auf Waren.
             </p>
           ) : (
-            <ul className="shopping-zettel-list">
-              {selected.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="shopping-zettel-chip"
-                    onClick={() => void toggleSelected(item)}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="shopping-zettel-list">
+                {selected.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="shopping-zettel-chip"
+                      onClick={() => void toggleSelected(item)}
+                    >
+                      {item.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="shopping-share mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary px-2 text-sm"
+                  onClick={() => void copyZettel()}
+                >
+                  {copyState === "copied"
+                    ? "Kopiert!"
+                    : copyState === "error"
+                      ? "Fehler"
+                      : "Kopieren"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-accent px-2 text-sm"
+                  onClick={() => void shareZettel()}
+                >
+                  Senden
+                </button>
+              </div>
+            </>
           )}
         </div>
 
