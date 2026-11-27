@@ -30,8 +30,6 @@ export type LeaveRequest = {
 
 export type AppState = {
   sampleMode: boolean;
-  /** True when server EDIT_CODE is set (production secret). */
-  editCodeConfigured: boolean;
   people: Person[];
   shifts: Shift[];
   leave: LeaveRequest[];
