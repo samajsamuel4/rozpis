@@ -451,7 +451,7 @@ export default function RozpisApp() {
             </p>
             <p className="mt-2 max-w-2xl text-base text-[var(--ink-soft)] sm:text-lg">
               Kalender ist für alle lesbar. Schichten, freie Tage, Urlaub und
-              Kollegen brauchen den Team-Code.
+              Kollegen brauchen den Team-Code (mind. 8 Zeichen).
             </p>
           </div>
           {unlocked ? (
