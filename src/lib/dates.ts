@@ -30,8 +30,13 @@ export function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Normalize DB/API date strings to YYYY-MM-DD. */
+export function asDay(value: string): string {
+  return value.slice(0, 10);
+}
+
 export function parseISODate(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = asDay(iso).split("-").map(Number);
   return new Date(y, m - 1, d);
 }
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  asDay,
   calendarCells,
   formatShortRange,
   monthTitle,
@@ -23,6 +24,11 @@ const STATUS_SK: Record<LeaveRequest["status"], string> = {
   approved: "Schválené",
   cancelled: "Zrušené",
 };
+
+function parseLocalDay(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
 
 export default function RozpisApp() {
   const now = useMemo(() => new Date(), []);
@@ -74,9 +80,10 @@ export default function RozpisApp() {
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>();
     for (const s of state?.shifts ?? []) {
-      const list = map.get(s.work_date) ?? [];
-      list.push(s);
-      map.set(s.work_date, list);
+      const key = asDay(s.work_date);
+      const list = map.get(key) ?? [];
+      list.push({ ...s, work_date: key });
+      map.set(key, list);
     }
     return map;
   }, [state]);
@@ -85,12 +92,16 @@ export default function RozpisApp() {
     const map = new Map<string, LeaveRequest[]>();
     for (const l of state?.leave ?? []) {
       if (l.status === "cancelled") continue;
-      const start = new Date(l.start_date + "T12:00:00");
-      const end = new Date(l.end_date + "T12:00:00");
+      const start = parseLocalDay(asDay(l.start_date));
+      const end = parseLocalDay(asDay(l.end_date));
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const key = toISODate(d);
         const list = map.get(key) ?? [];
-        list.push(l);
+        list.push({
+          ...l,
+          start_date: asDay(l.start_date),
+          end_date: asDay(l.end_date),
+        });
         map.set(key, list);
       }
     }
@@ -279,19 +290,24 @@ export default function RozpisApp() {
             value={whoId ?? ""}
             onChange={(e) => pickWho(Number(e.target.value))}
             aria-label="Vyberte, ako ktorú osobu konáte"
+            disabled={!state?.people.length}
           >
-            {(state?.people ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
+            {(state?.people ?? []).length === 0 ? (
+              <option value="">Najprv pridajte kolegu</option>
+            ) : (
+              (state?.people ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))
+            )}
           </select>
         </label>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <button
             type="button"
-            className="btn btn-accent anim-pulse-once"
+            className="btn btn-accent anim-pulse-once flex-1 sm:flex-none"
             onClick={() => setModal({ type: "leave" })}
             disabled={!who}
           >
@@ -299,13 +315,27 @@ export default function RozpisApp() {
           </button>
           <button
             type="button"
-            className="btn btn-ghost"
+            className="btn btn-ghost flex-1 sm:flex-none"
             onClick={() => setModal({ type: "people" })}
           >
             Kolegovia
           </button>
         </div>
       </section>
+
+      {!loading && (state?.people.length ?? 0) === 0 ? (
+        <div className="mb-4 rounded-2xl border border-dashed border-[var(--spruce-mid)]/35 bg-white/50 px-4 py-3 text-sm text-[var(--ink-soft)]">
+          Zatiaľ nie sú žiadni kolegovia. Otvorte{" "}
+          <button
+            type="button"
+            className="font-semibold text-[var(--spruce)] underline"
+            onClick={() => setModal({ type: "people" })}
+          >
+            Kolegovia
+          </button>{" "}
+          a pridajte prvé meno.
+        </div>
+      ) : null}
 
       {error ? (
         <div
@@ -447,7 +477,7 @@ export default function RozpisApp() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-[var(--ink-soft)]">
-                    {formatShortRange(l.start_date, l.end_date)}
+                    {formatShortRange(asDay(l.start_date), asDay(l.end_date))}
                     {l.note ? ` · ${l.note}` : ""}
                   </p>
                 </div>
