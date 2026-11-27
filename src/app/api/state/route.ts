@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { usesEnvEditCode } from "@/lib/access";
 import { monthBounds } from "@/lib/dates";
 import { isSampleMode, sql } from "@/lib/db";
 import type { LeaveRequest, Person, Shift } from "@/lib/types";
@@ -47,8 +46,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     sampleMode: isSampleMode(),
-    /** True when EDIT_CODE secret is set; false means local fallback code applies. */
-    editCodeConfigured: usesEnvEditCode(),
     people,
     shifts,
     leave,

@@ -14,8 +14,6 @@ import type { AppState, LeaveRequest, Person, Shift } from "@/lib/types";
 
 const WHO_KEY = "rozpis-who-am-i";
 const EDIT_KEY = "rozpis-edit-code";
-/** Shown only in sample / unconfigured mode — matches server FALLBACK_EDIT_CODE. */
-const SAMPLE_EDIT_HINT = "timovy";
 
 type Modal =
   | { type: "day"; date: string }
@@ -348,16 +346,7 @@ export default function RozpisApp() {
             </p>
             <p className="mt-1 text-sm text-[var(--ink-soft)]">
               Kalendár je na čítanie pre každého. Zmeny, voľno a kolegovia
-              vyžadujú tímový editačný kód.
-              {state?.sampleMode ? (
-                <>
-                  {" "}
-                  Lokálny kód:{" "}
-                  <code className="rounded bg-[var(--mist)] px-1.5 py-0.5 font-semibold text-[var(--spruce)]">
-                    {SAMPLE_EDIT_HINT}
-                  </code>
-                </>
-              ) : null}
+              vyžadujú tímový editačný kód od správcu (Cursor Secrets).
             </p>
           </div>
           {unlocked ? (
