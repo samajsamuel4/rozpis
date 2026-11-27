@@ -316,3 +316,121 @@ a {
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+.shopping-board {
+  background: rgba(6, 5, 4, 0.88);
+  border: 1px solid rgba(247, 241, 232, 0.16);
+  border-radius: 12px;
+  box-shadow:
+    var(--shadow),
+    inset 0 -1px 0 color-mix(in srgb, var(--gold) 35%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.shopping-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border: 1px solid rgba(247, 241, 232, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .shopping-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.shopping-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  border-bottom: 1px solid rgba(247, 241, 232, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+@media (min-width: 720px) {
+  .shopping-col {
+    border-bottom: none;
+    border-right: 1px solid rgba(247, 241, 232, 0.12);
+  }
+
+  .shopping-col:last-child {
+    border-right: none;
+  }
+}
+
+.shopping-col-head {
+  padding: 0.7rem 0.75rem 0.45rem;
+  border-bottom: 1px solid rgba(247, 241, 232, 0.1);
+}
+
+.shopping-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.shopping-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid rgba(247, 241, 232, 0.08);
+}
+
+.shopping-label {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.shopping-label:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shopping-label.is-done {
+  color: rgba(247, 241, 232, 0.38);
+  text-decoration: line-through;
+}
+
+.shopping-del {
+  width: 2rem;
+  border: none;
+  background: transparent;
+  color: rgba(247, 241, 232, 0.35);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.shopping-del:hover {
+  color: #ffc9c9;
+  background: rgba(198, 40, 40, 0.15);
+}
+
+.shopping-add {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.55rem 0.5rem 0.65rem;
+  margin-top: auto;
+  border-top: 1px solid rgba(247, 241, 232, 0.1);
+}
+
+.shopping-add-field {
+  min-height: 38px;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.shopping-add-btn {
+  min-height: 38px;
+  min-width: 38px;
+  padding: 0.35rem 0.55rem;
+}
