@@ -370,36 +370,40 @@ export default function RozpisApp() {
         ) : null}
       </header>
 
-      <section className="anim-rise surface mb-4 p-3 sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
+      <section className="anim-rise surface mb-5 p-5 sm:mb-6 sm:p-7">
+        <div className="flex flex-col gap-5">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)] sm:text-base">
               Bearbeitung
             </p>
-            <p className="mt-1 text-sm text-[var(--ink-soft)]">
+            <p className="mt-2 max-w-2xl text-base text-[var(--ink-soft)] sm:text-lg">
               Kalender ist für alle lesbar. Schichten, freie Tage, Urlaub und
               Kollegen brauchen den Team-Code.
             </p>
           </div>
           {unlocked ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-xl bg-[color-mix(in_srgb,var(--teal)_22%,transparent)] px-3 py-1.5 text-sm font-semibold text-[var(--teal)]">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-xl bg-[color-mix(in_srgb,var(--teal)_22%,transparent)] px-4 py-2.5 text-base font-semibold text-[var(--teal)] sm:text-lg">
                 Freigeschaltet
               </span>
-              <button type="button" className="btn btn-ghost" onClick={lockEditing}>
+              <button
+                type="button"
+                className="btn btn-ghost px-5 text-base"
+                onClick={lockEditing}
+              >
                 Sperren
               </button>
             </div>
           ) : (
             <form
-              className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center"
+              className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch"
               onSubmit={(e) => {
                 e.preventDefault();
                 unlockEditing(editDraft);
               }}
             >
               <input
-                className="field min-w-0 sm:w-44"
+                className="field min-h-[58px] w-full flex-1 px-4 text-lg tracking-[0.12em] sm:min-h-[64px] sm:text-xl"
                 type="password"
                 autoComplete="off"
                 placeholder="Bearbeitungscode"
@@ -407,7 +411,10 @@ export default function RozpisApp() {
                 onChange={(e) => setEditDraft(e.target.value)}
                 aria-label="Team-Bearbeitungscode"
               />
-              <button type="submit" className="btn btn-accent">
+              <button
+                type="submit"
+                className="btn btn-accent min-h-[58px] px-6 text-base sm:min-h-[64px] sm:px-8 sm:text-lg"
+              >
                 Freischalten
               </button>
             </form>
