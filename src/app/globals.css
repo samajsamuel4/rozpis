@@ -1,28 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #f4efe6;
-  --ink-soft: rgba(244, 239, 230, 0.72);
-  --ink-dark: #1a1410;
-  --panel: rgba(18, 14, 12, 0.72);
-  --panel-strong: rgba(22, 17, 14, 0.88);
-  --line: rgba(244, 239, 230, 0.14);
-  --gold: #e8c27a;
-  --gold-deep: #c9a05a;
-  --teal: #2fbfb0;
-  --teal-deep: #1a8f84;
+  --ink: #f7f1e8;
+  --ink-soft: rgba(247, 241, 232, 0.7);
+  --ink-dark: #14110f;
+  --panel: rgba(16, 12, 10, 0.78);
+  --panel-strong: rgba(14, 11, 9, 0.92);
+  --line: rgba(247, 241, 232, 0.12);
+  --gold: #e6c17a;
+  --gold-deep: #c9a45a;
+  --emerald: #1f8f6e;
+  --emerald-bright: #2db88a;
   --work: #2f9e6a;
   --work-deep: #1d7a4f;
   --reserve: #d4a017;
-  --reserve-soft: rgba(212, 160, 23, 0.28);
+  --reserve-soft: rgba(212, 160, 23, 0.22);
   --free-day: #e07a7a;
-  --free-day-soft: rgba(224, 122, 122, 0.22);
+  --free-day-soft: rgba(224, 122, 122, 0.2);
   --vacation: #c62828;
-  --vacation-soft: rgba(198, 40, 40, 0.28);
+  --vacation-soft: rgba(198, 40, 40, 0.26);
   --leave: #e07a7a;
   --danger: #c45c5c;
-  --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  --radius: 16px;
+  --teal: var(--emerald-bright);
+  --teal-deep: var(--emerald);
+  --shadow: 0 28px 70px rgba(0, 0, 0, 0.5);
+  --radius: 14px;
   --font-display: var(--font-bricolage), "Bricolage Grotesque", sans-serif;
   --font-body: var(--font-manrope), "Manrope", sans-serif;
 }
@@ -40,17 +42,17 @@ body {
 body {
   color: var(--ink);
   font-family: var(--font-body);
-  background-color: #120e0c;
+  background-color: #0c0a09;
   background-image:
     linear-gradient(
-      165deg,
-      rgba(12, 9, 8, 0.55) 0%,
-      rgba(18, 14, 12, 0.72) 42%,
-      rgba(10, 8, 7, 0.82) 100%
+      180deg,
+      rgba(8, 6, 5, 0.42) 0%,
+      rgba(10, 8, 7, 0.55) 38%,
+      rgba(8, 6, 5, 0.78) 100%
     ),
-    url("/fitz-interior.jpg");
+    url("/fitz-bar.jpg");
   background-size: cover;
-  background-position: center;
+  background-position: center center;
   background-attachment: fixed;
   background-repeat: no-repeat;
   -webkit-tap-highlight-color: transparent;
@@ -79,7 +81,7 @@ a {
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -96,35 +98,21 @@ a {
   }
 }
 
-@keyframes glow-once {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(47, 191, 176, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 0 10px rgba(47, 191, 176, 0);
-  }
-}
-
 .anim-rise {
-  animation: rise-in 0.55s ease-out both;
+  animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .anim-fade {
-  animation: fade-in 0.4s ease-out both;
-}
-
-.anim-pulse-once {
-  animation: glow-once 1.4s ease-out 1;
+  animation: fade-in 0.45s ease-out both;
 }
 
 .brand-title {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.04em;
   line-height: 0.92;
   color: var(--gold);
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 4px 28px rgba(0, 0, 0, 0.55);
 }
 
 .surface {
@@ -132,21 +120,42 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.gate-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .gate-shell {
+    justify-content: center;
+    align-items: flex-start;
+    padding: 3rem 4rem;
+  }
+}
+
+.gate-panel {
+  width: min(420px, 100%);
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .day-cell {
   transition:
-    transform 0.18s ease,
-    background 0.18s ease,
-    border-color 0.18s ease;
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease;
 }
 
 .day-cell:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--teal) 50%, transparent);
-  background: rgba(255, 255, 255, 0.1);
+  border-color: color-mix(in srgb, var(--gold) 40%, transparent);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .day-cell:active {
@@ -155,8 +164,8 @@ a {
 
 .btn {
   border: none;
-  border-radius: 12px;
-  padding: 0.7rem 1.15rem;
+  border-radius: 10px;
+  padding: 0.7rem 1.1rem;
   min-height: 44px;
   cursor: pointer;
   font-weight: 650;
@@ -168,7 +177,7 @@ a {
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -186,13 +195,13 @@ a {
 }
 
 .btn-accent {
-  background: var(--teal);
-  color: #06221f;
+  background: var(--emerald);
+  color: #f4efe6;
 }
 
 .btn-accent:hover {
-  background: var(--teal-deep);
-  color: #f4efe6;
+  background: var(--emerald-bright);
+  color: #06221f;
 }
 
 .btn-ghost {
@@ -202,17 +211,17 @@ a {
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   color: var(--ink);
 }
 
 .field {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
   min-height: 44px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   color: var(--ink);
   font-size: 16px;
 }
@@ -223,21 +232,21 @@ a {
 }
 
 .field:focus {
-  outline: 2px solid color-mix(in srgb, var(--teal) 55%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--gold) 50%, transparent);
   outline-offset: 1px;
 }
 
 .field::placeholder {
-  color: rgba(244, 239, 230, 0.45);
+  color: rgba(247, 241, 232, 0.4);
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border-radius: 8px;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.72rem;
+  border-radius: 7px;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.7rem;
   font-weight: 650;
   max-width: 100%;
   overflow: hidden;
@@ -248,14 +257,14 @@ a {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(8, 6, 5, 0.62);
+  background: rgba(6, 5, 4, 0.68);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 0;
   z-index: 40;
   animation: fade-in 0.2s ease-out;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(5px);
 }
 
 @media (min-width: 640px) {
@@ -269,18 +278,17 @@ a {
   width: min(520px, 100%);
   max-height: min(92vh, 860px);
   overflow: auto;
-  border-radius: 20px 20px 0 0;
+  border-radius: 18px 18px 0 0;
   background: var(--panel-strong);
   border: 1px solid var(--line);
   padding: 1.25rem;
   box-shadow: var(--shadow);
   animation: rise-in 0.28s ease-out;
-  backdrop-filter: blur(20px);
 }
 
 @media (min-width: 640px) {
   .modal-sheet {
-    border-radius: 20px;
+    border-radius: 18px;
     padding: 1.5rem;
   }
 }

@@ -59,6 +59,9 @@ export default function RozpisApp() {
   const [editCode, setEditCode] = useState("");
   const [editDraft, setEditDraft] = useState("");
   const [unlocked, setUnlocked] = useState(false);
+  const [booting, setBooting] = useState(true);
+  const [gateBusy, setGateBusy] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
 
   const load = useCallback(async (y: number, m: number, code?: string) => {
     setLoading(true);
@@ -92,19 +95,78 @@ export default function RozpisApp() {
   }, [editCode]);
 
   useEffect(() => {
+    if (!unlocked) return;
     void load(year, month);
-  }, [year, month, load]);
+  }, [year, month, load, unlocked]);
+
+  const enterWithCode = useCallback(
+    async (code: string, fromSession = false) => {
+      const trimmed = code.trim();
+      if (!trimmed) {
+        setGateError("Bitte Code eingeben");
+        setBooting(false);
+        return false;
+      }
+      if (trimmed.length < 4) {
+        setGateError("Code muss mindestens 4 Zeichen haben");
+        setBooting(false);
+        return false;
+      }
+      setGateBusy(true);
+      setGateError(null);
+      try {
+        const res = await fetch("/api/unlock", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-edit-code": trimmed,
+          },
+          body: "{}",
+        });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          if (res.status === 429) {
+            throw new Error(
+              j?.error ||
+                "Zu viele falsche Codes. Bitte später erneut versuchen.",
+            );
+          }
+          throw new Error(
+            fromSession ? "Sitzung abgelaufen — erneut anmelden." : "Code ungültig",
+          );
+        }
+        setEditCode(trimmed);
+        setEditDraft(trimmed);
+        sessionStorage.setItem(EDIT_KEY, trimmed);
+        setUnlocked(true);
+        setGateError(null);
+        return true;
+      } catch (e) {
+        if (fromSession) sessionStorage.removeItem(EDIT_KEY);
+        setUnlocked(false);
+        setEditCode("");
+        setGateError(e instanceof Error ? e.message : "Code ungültig");
+        return false;
+      } finally {
+        setGateBusy(false);
+        setBooting(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const raw = localStorage.getItem(WHO_KEY);
     if (raw) setWhoId(Number(raw));
     const saved = sessionStorage.getItem(EDIT_KEY) ?? "";
     if (saved) {
-      setEditCode(saved);
-      setEditDraft(saved);
-      setUnlocked(true);
+      void enterWithCode(saved, true);
+    } else {
+      setBooting(false);
     }
-  }, []);
+  }, [enterWithCode]);
 
   useEffect(() => {
     if (!state?.people.length) return;
@@ -123,34 +185,18 @@ export default function RozpisApp() {
     };
   }
 
-  function unlockEditing(code: string) {
-    const trimmed = code.trim();
-    if (!trimmed) {
-      setError("Bitte Bearbeitungscode eingeben");
-      return;
-    }
-    if (trimmed.length < 4) {
-      setError("Team-Code muss mindestens 4 Zeichen haben");
-      return;
-    }
-    setEditCode(trimmed);
-    sessionStorage.setItem(EDIT_KEY, trimmed);
-    setUnlocked(true);
-    setError(null);
-    void load(year, month, trimmed);
-  }
-
   function lockEditing() {
     setUnlocked(false);
     setEditCode("");
     setEditDraft("");
+    setState(null);
     sessionStorage.removeItem(EDIT_KEY);
-    void load(year, month, "");
+    setGateError(null);
   }
 
   async function requireUnlock(): Promise<boolean> {
     if (unlocked && editCode) return true;
-    setError("Zuerst mit dem Team-Code freischalten");
+    setError("Bitte erneut anmelden");
     return false;
   }
 
@@ -456,77 +502,101 @@ export default function RozpisApp() {
   const todayIso = toISODate(now);
   const cells = calendarCells(year, month);
 
-  return (
-    <div className="mx-auto min-h-screen w-full max-w-6xl px-3 pb-10 pt-4 sm:px-6 sm:pt-8">
-      <header className="anim-rise mb-5 sm:mb-7">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-soft)]">
-          Restaurant Fitz · Team
-        </p>
-        <h1 className="brand-title text-[clamp(2.8rem,13vw,5.4rem)]">
-          Dienstplan
-        </h1>
+  if (booting) {
+    return (
+      <div className="gate-shell">
+        <div className="gate-panel">
+          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--ink-soft)]">
+            Restaurant Fitz
+          </p>
+          <h1 className="brand-title mt-3 text-[clamp(3.4rem,16vw,6rem)]">
+            Dienstplan
+          </h1>
+          <p className="mt-4 text-[var(--ink-soft)]">Laden…</p>
+        </div>
+      </div>
+    );
+  }
 
-        {state?.sampleMode ? (
-          <div className="mt-4 inline-flex items-center rounded-xl border border-[var(--gold)]/35 bg-[color-mix(in_srgb,var(--gold)_18%,transparent)] px-3 py-1.5 text-sm font-semibold text-[var(--gold)]">
-            Beispieldaten (lokal)
-          </div>
-        ) : null}
+  if (!unlocked) {
+    return (
+      <div className="gate-shell">
+        <div className="gate-panel">
+          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--ink-soft)]">
+            Restaurant Fitz
+          </p>
+          <h1 className="brand-title mt-3 text-[clamp(3.4rem,16vw,6rem)]">
+            Dienstplan
+          </h1>
+          <p className="mt-4 max-w-sm text-base leading-relaxed text-[var(--ink-soft)]">
+            Team-Zugang. Code eingeben, um den Plan zu öffnen.
+          </p>
+          <form
+            className="mt-8 flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void enterWithCode(editDraft);
+            }}
+          >
+            <label className="sr-only" htmlFor="team-code">
+              Team-Code
+            </label>
+            <input
+              id="team-code"
+              className="field min-h-[56px] px-4 text-center text-2xl tracking-[0.35em]"
+              type="password"
+              inputMode="text"
+              autoComplete="current-password"
+              autoFocus
+              maxLength={32}
+              placeholder="····"
+              value={editDraft}
+              onChange={(e) => setEditDraft(e.target.value)}
+              disabled={gateBusy}
+            />
+            {gateError ? (
+              <p className="text-sm text-[#ffc9c9]" role="alert">
+                {gateError}
+              </p>
+            ) : null}
+            <button
+              type="submit"
+              className="btn btn-primary min-h-[52px] text-base"
+              disabled={gateBusy}
+            >
+              {gateBusy ? "Prüfen…" : "Eintreten"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto min-h-screen w-full max-w-5xl px-3 pb-10 pt-5 sm:px-6 sm:pt-8">
+      <header className="anim-rise mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--ink-soft)]">
+            Restaurant Fitz
+          </p>
+          <h1 className="brand-title text-[clamp(2.4rem,10vw,4.2rem)]">
+            Dienstplan
+          </h1>
+          {state?.sampleMode ? (
+            <p className="mt-2 text-sm text-[var(--gold)]">Beispieldaten (lokal)</p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="btn btn-ghost px-4 text-sm"
+          onClick={lockEditing}
+        >
+          Abmelden
+        </button>
       </header>
 
-      <section className="anim-rise surface mb-5 p-5 sm:mb-6 sm:p-7">
-        <div className="flex flex-col gap-5">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)] sm:text-base">
-              Bearbeitung
-            </p>
-            <p className="mt-2 max-w-2xl text-base text-[var(--ink-soft)] sm:text-lg">
-              Dienstplan und Gästezahlen sind öffentlich. Gastnamen und Notizen
-              nur mit Team-Code (mind. 4 Zeichen).
-            </p>
-          </div>
-          {unlocked ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-xl bg-[color-mix(in_srgb,var(--teal)_22%,transparent)] px-4 py-2.5 text-base font-semibold text-[var(--teal)] sm:text-lg">
-                Freigeschaltet
-              </span>
-              <button
-                type="button"
-                className="btn btn-ghost px-5 text-base"
-                onClick={lockEditing}
-              >
-                Sperren
-              </button>
-            </div>
-          ) : (
-            <form
-              className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch"
-              onSubmit={(e) => {
-                e.preventDefault();
-                unlockEditing(editDraft);
-              }}
-            >
-              <input
-                className="field min-h-[58px] w-full flex-1 px-4 text-lg tracking-[0.12em] sm:min-h-[64px] sm:text-xl"
-                type="password"
-                autoComplete="off"
-                placeholder="Bearbeitungscode"
-                value={editDraft}
-                onChange={(e) => setEditDraft(e.target.value)}
-                aria-label="Team-Bearbeitungscode"
-              />
-              <button
-                type="submit"
-                className="btn btn-accent min-h-[58px] px-6 text-base sm:min-h-[64px] sm:px-8 sm:text-lg"
-              >
-                Freischalten
-              </button>
-            </form>
-          )}
-        </div>
-      </section>
-
-      <section className="anim-rise mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <label className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[220px]">
+      <section className="anim-rise mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <label className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[200px]">
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
             Wer bin ich
           </span>
@@ -554,15 +624,14 @@ export default function RozpisApp() {
             type="button"
             className="btn btn-primary flex-1 sm:flex-none"
             onClick={() => setModal({ type: "reservation" })}
-            disabled={!unlocked}
           >
             Reservierung
           </button>
           <button
             type="button"
-            className="btn btn-accent anim-pulse-once flex-1 sm:flex-none"
+            className="btn btn-accent flex-1 sm:flex-none"
             onClick={() => setModal({ type: "leave" })}
-            disabled={!who || !unlocked}
+            disabled={!who}
           >
             Abwesenheit
           </button>
@@ -570,7 +639,6 @@ export default function RozpisApp() {
             type="button"
             className="btn btn-ghost flex-1 sm:flex-none"
             onClick={() => setModal({ type: "people" })}
-            disabled={!unlocked}
           >
             Kollegen
           </button>
@@ -800,9 +868,6 @@ export default function RozpisApp() {
                 <span className="text-[var(--ink-soft)]">
                   {" "}
                   · {t.count} Res. · {t.guests} Gäste
-                  {(state?.reservations?.length ?? 0) === 0
-                    ? " · Namen nach Freischaltung"
-                    : ""}
                 </span>
               </li>
             ))
