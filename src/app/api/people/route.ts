@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertCanMutate } from "@/lib/access";
+import { assertCanAccess, assertCanMutate } from "@/lib/access";
 import { sql } from "@/lib/db";
 import type { Person } from "@/lib/types";
 
@@ -23,7 +23,10 @@ function normalizeTime(value: string | undefined, fallback: string): string {
   return TIME_RE.test(v) ? v : fallback;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = assertCanAccess(request);
+  if (denied) return denied;
+
   const people = await sql<Person>(
     `select id, name, color, work_start, work_end, created_at::text
      from people order by name`,

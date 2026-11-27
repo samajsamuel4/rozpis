@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 /** Shared team EDIT_CODE minimum length. */
 export const MIN_CODE_LENGTH = 4;
 /** Bumped so security review re-scans a fresh tree. */
-export const ACCESS_BUILD = "2026-11-27-r5b-gate";
+export const ACCESS_BUILD = "2026-11-27-r6-auth-reads";
 const FAIL_WINDOW_MS = 15 * 60 * 1000;
 const FAIL_MAX = 5;
 const LOCK_MS = 15 * 60 * 1000;
@@ -156,59 +156,59 @@ export function assertSameOrigin(
   return null;
 }
 
-type SensitiveRead =
-  | { unlocked: true; block?: undefined }
-  | { unlocked: false; block?: undefined }
-  | { unlocked: false; block: NextResponse };
-
 /**
- * Authorize sensitive schedule reads (guest names / leave notes).
- * - Missing code → public/redacted payload (no oracle field).
- * - Wrong code → same public payload, but records a failure like writes.
- * - Lockout → 429 (same message as mutations).
- * - Valid code → unlocked; clears failure bucket.
+ * Require valid EDIT_CODE for schedule reads.
+ * The UI gate is not enough alone — APIs must reject anonymous callers.
+ * Wrong guesses share the same lockout bucket as writes; missing header is 401
+ * without counting a failure.
  */
-export function resolveSensitiveRead(request: NextRequest): SensitiveRead {
+export function assertCanAccess(
+  request: NextRequest,
+): NextResponse | null {
   const now = Date.now();
   const key = clientKey(request);
 
   const lockedUntil = isLockedOut(key, now);
   if (lockedUntil) {
     const retryAfter = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
-    return {
-      unlocked: false,
-      block: NextResponse.json(
-        {
-          error:
-            "Zu viele falsche Codes. Bitte später erneut versuchen.",
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(retryAfter) },
-        },
-      ),
-    };
+    return NextResponse.json(
+      {
+        error:
+          "Zu viele falsche Codes. Bitte später erneut versuchen.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      },
+    );
   }
 
   const expected = configuredEditCode();
-  const provided = request.headers.get("x-edit-code")?.trim() ?? "";
-
-  // No header: public calendar only — do not count as an auth failure.
-  if (!provided) {
-    return { unlocked: false };
+  if (!expected) {
+    return NextResponse.json(
+      {
+        error:
+          "Zugang deaktiviert: EDIT_CODE fehlt in den App-Einstellungen.",
+      },
+      { status: 503 },
+    );
+  }
+  if (expected.length < MIN_CODE_LENGTH) {
+    return NextResponse.json(
+      {
+        error: `EDIT_CODE muss mindestens ${MIN_CODE_LENGTH} Zeichen haben.`,
+      },
+      { status: 503 },
+    );
   }
 
-  if (
-    !expected ||
-    expected.length < MIN_CODE_LENGTH ||
-    !codesMatch(provided, expected)
-  ) {
-    const until = recordAuthFailure(key, now);
-    if (until) {
-      const retryAfter = Math.max(1, Math.ceil((until - now) / 1000));
-      return {
-        unlocked: false,
-        block: NextResponse.json(
+  const provided = request.headers.get("x-edit-code")?.trim() ?? "";
+  if (!provided || !codesMatch(provided, expected)) {
+    if (provided) {
+      const until = recordAuthFailure(key, now);
+      if (until) {
+        const retryAfter = Math.max(1, Math.ceil((until - now) / 1000));
+        return NextResponse.json(
           {
             error:
               "Zu viele falsche Codes. Bitte später erneut versuchen.",
@@ -217,15 +217,19 @@ export function resolveSensitiveRead(request: NextRequest): SensitiveRead {
             status: 429,
             headers: { "Retry-After": String(retryAfter) },
           },
-        ),
-      };
+        );
+      }
     }
-    // Identical to missing-code outcome: no detailsUnlocked oracle.
-    return { unlocked: false };
+    return NextResponse.json(
+      {
+        error: "Team-Code erforderlich (Header X-Edit-Code).",
+      },
+      { status: 401 },
+    );
   }
 
   clearAuthFailures(key);
-  return { unlocked: true };
+  return null;
 }
 
 /**

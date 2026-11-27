@@ -78,11 +78,20 @@ export default function RozpisApp() {
         const j = (await res.json().catch(() => null)) as {
           error?: string;
         } | null;
+        if (res.status === 401) {
+          sessionStorage.removeItem(EDIT_KEY);
+          setUnlocked(false);
+          setEditCode("");
+          setEditDraft("");
+          setState(null);
+        }
         throw new Error(
           j?.error ||
             (res.status === 429
               ? "Zu viele falsche Codes. Bitte später erneut versuchen."
-              : "Dienstplan konnte nicht geladen werden"),
+              : res.status === 401
+                ? "Team-Code erforderlich"
+                : "Dienstplan konnte nicht geladen werden"),
         );
       }
       const data = (await res.json()) as AppState;
