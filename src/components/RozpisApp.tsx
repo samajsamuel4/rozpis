@@ -117,8 +117,8 @@ export default function RozpisApp() {
         setBooting(false);
         return false;
       }
-      if (trimmed.length < 4) {
-        setGateError("Code muss mindestens 4 Zeichen haben");
+      if (trimmed.length < 8) {
+        setGateError("Code muss mindestens 8 Zeichen haben");
         setBooting(false);
         return false;
       }
@@ -559,7 +559,7 @@ export default function RozpisApp() {
               autoComplete="current-password"
               autoFocus
               maxLength={32}
-              placeholder="····"
+              placeholder="········"
               value={editDraft}
               onChange={(e) => setEditDraft(e.target.value)}
               disabled={gateBusy}
@@ -583,13 +583,13 @@ export default function RozpisApp() {
   }
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-5xl px-3 pb-10 pt-5 sm:px-6 sm:pt-8">
-      <header className="anim-rise mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--ink-soft)]">
+    <div className="app-shell mx-auto min-h-screen w-full px-3 pb-8 pt-4">
+      <header className="anim-rise mb-5 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--ink-soft)]">
             Restaurant Fitz
           </p>
-          <h1 className="brand-title text-[clamp(2.4rem,10vw,4.2rem)]">
+          <h1 className="brand-title text-[clamp(2.2rem,11vw,3.2rem)]">
             Dienstplan
           </h1>
           {state?.sampleMode ? (
@@ -605,9 +605,9 @@ export default function RozpisApp() {
         </button>
       </header>
 
-      <section className="anim-rise mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <label className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[200px]">
-          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
+      <section className="anim-rise mb-4 flex flex-col gap-3">
+        <label className="flex w-full flex-col gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
             Wer bin ich
           </span>
           <select
@@ -629,28 +629,28 @@ export default function RozpisApp() {
           </select>
         </label>
 
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
-            className="btn btn-primary flex-1 sm:flex-none"
+            className="btn btn-primary px-2 text-sm"
             onClick={() => setModal({ type: "reservation" })}
           >
-            Reservierung
+            Res.
           </button>
           <button
             type="button"
-            className="btn btn-accent flex-1 sm:flex-none"
+            className="btn btn-accent px-2 text-sm"
             onClick={() => setModal({ type: "leave" })}
             disabled={!who}
           >
-            Abwesenheit
+            Frei
           </button>
           <button
             type="button"
-            className="btn btn-ghost flex-1 sm:flex-none"
+            className="btn btn-ghost px-2 text-sm"
             onClick={() => setModal({ type: "people" })}
           >
-            Kollegen
+            Team
           </button>
         </div>
       </section>
