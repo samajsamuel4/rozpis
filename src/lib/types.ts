@@ -52,9 +52,11 @@ export type ReservationDayTotal = {
 
 export type AppState = {
   sampleMode: boolean;
+  /** Non-secret build stamp for deploy/review freshness. */
+  build?: string;
   people: Person[];
   shifts: Shift[];
-  /** Leave notes omitted when detailsUnlocked is false. */
+  /** Leave notes omitted on public reads (no note key). */
   leave: Array<Omit<LeaveRequest, "note"> & { note?: string }>;
   /** Empty for public reads; full rows only with valid X-Edit-Code. */
   reservations: Reservation[];
@@ -62,8 +64,6 @@ export type AppState = {
   reservationTotals: ReservationDayTotal[];
   year: number;
   month: number;
-  /** True when response includes guest names/notes (valid X-Edit-Code). */
-  detailsUnlocked?: boolean;
 };
 
 export const LEAVE_TYPE_AT: Record<LeaveType, string> = {
