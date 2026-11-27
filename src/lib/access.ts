@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 /** Shared team EDIT_CODE minimum length. */
 export const MIN_CODE_LENGTH = 4;
 /** Bumped so security review re-scans a fresh tree. */
-export const ACCESS_BUILD = "2026-11-27-r4-min4";
+export const ACCESS_BUILD = "2026-11-27-r5-gate";
 const FAIL_WINDOW_MS = 15 * 60 * 1000;
 const FAIL_MAX = 5;
 const LOCK_MS = 15 * 60 * 1000;
