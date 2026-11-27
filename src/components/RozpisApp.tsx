@@ -580,27 +580,29 @@ export default function RozpisApp() {
   }
 
   return (
-    <div className="app-shell mx-auto min-h-screen w-full px-3.5 pb-10 pt-5">
-      <header className="anim-rise mb-6 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="eyebrow mb-1.5">Dienstplan</p>
-          <h1 className="brand-title text-[clamp(2.4rem,12vw,3.4rem)]">
-            FitzTeam
-          </h1>
-          {state?.sampleMode ? (
-            <p className="mt-2 text-sm text-[var(--gold)]">Beispieldaten (lokal)</p>
-          ) : null}
+    <div className="app-shell mx-auto min-h-screen w-full px-3.5 pt-5">
+      <header className="anim-rise mb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow mb-1.5">Restaurant Fitz</p>
+            <h1 className="brand-title text-[clamp(2.6rem,13vw,3.6rem)]">
+              FitzTeam
+            </h1>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost px-3 text-sm"
+            onClick={lockEditing}
+          >
+            Abmelden
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost px-3.5 text-sm"
-          onClick={lockEditing}
-        >
-          Abmelden
-        </button>
+        {state?.sampleMode ? (
+          <p className="mt-2 text-sm text-[var(--gold)]">Beispieldaten (lokal)</p>
+        ) : null}
       </header>
 
-      <section className="anim-rise mb-5 flex flex-col gap-3.5">
+      <section className="control-strip anim-rise mb-4">
         <label className="flex w-full flex-col gap-1.5">
           <span className="eyebrow">Wer bin ich</span>
           <select
@@ -621,38 +623,6 @@ export default function RozpisApp() {
             )}
           </select>
         </label>
-
-        <div className="action-grid">
-          <button
-            type="button"
-            className="btn btn-accent"
-            onClick={() => setModal({ type: "shopping" })}
-          >
-            Einkauf
-          </button>
-          <button
-            type="button"
-            className="btn btn-reserve"
-            onClick={() => setModal({ type: "reservation" })}
-          >
-            Reservierung
-          </button>
-          <button
-            type="button"
-            className="btn btn-leave"
-            onClick={() => setModal({ type: "leave" })}
-            disabled={!who}
-          >
-            Frei
-          </button>
-          <button
-            type="button"
-            className="btn btn-team"
-            onClick={() => setModal({ type: "people" })}
-          >
-            Team
-          </button>
-        </div>
       </section>
 
       {!loading && (state?.people.length ?? 0) === 0 ? (
@@ -686,6 +656,9 @@ export default function RozpisApp() {
       ) : null}
 
       <section className="surface anim-rise p-3.5 sm:p-5">
+        <div className="mb-1">
+          <p className="eyebrow mb-2">Monat</p>
+        </div>
         <div className="calendar-nav mb-4 flex items-center justify-between gap-2">
           <button
             type="button"
@@ -695,7 +668,7 @@ export default function RozpisApp() {
           >
             ←
           </button>
-          <h2 className="section-title text-center text-xl sm:text-2xl">
+          <h2 className="month-title text-center">
             {monthTitle(year, month)}
           </h2>
           <button
@@ -729,14 +702,16 @@ export default function RozpisApp() {
               <button
                 key={cell.date}
                 type="button"
-                className={`day-cell flex min-h-[4.4rem] flex-col rounded-[12px] border border-[var(--line)] bg-white/[0.035] p-1 text-left sm:min-h-[6.2rem] sm:rounded-xl sm:p-1.5 ${
+                className={`day-cell flex min-h-[4.8rem] flex-col rounded-[12px] border border-[var(--line)] bg-black/25 p-1 text-left sm:min-h-[6.4rem] sm:rounded-xl sm:p-1.5 ${
                   isToday ? "is-today" : ""
                 }`}
                 onClick={() => setModal({ type: "day", date: cell.date! })}
               >
                 <span
-                  className={`mb-1 text-[0.78rem] font-bold sm:text-sm ${
-                    isToday ? "text-[var(--gold)]" : "text-[var(--ink)]"
+                  className={`mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.78rem] font-bold sm:h-7 sm:w-7 sm:text-sm ${
+                    isToday
+                      ? "bg-[var(--gold)] text-[var(--ink-dark)]"
+                      : "text-[var(--ink)]"
                   }`}
                 >
                   {cell.day}
@@ -811,6 +786,33 @@ export default function RozpisApp() {
         {loading ? (
           <p className="mt-3 text-sm text-[var(--ink-muted)]">Lade…</p>
         ) : null}
+        <div className="legend" aria-label="Legende">
+          <span className="legend-item">
+            <span className="legend-dot" style={{ background: "var(--work)" }} />
+            Arbeit
+          </span>
+          <span className="legend-item">
+            <span
+              className="legend-dot"
+              style={{ background: "var(--reserve)" }}
+            />
+            Reservierung
+          </span>
+          <span className="legend-item">
+            <span
+              className="legend-dot"
+              style={{ background: "var(--free-day)" }}
+            />
+            Frei
+          </span>
+          <span className="legend-item">
+            <span
+              className="legend-dot"
+              style={{ background: "var(--vacation)" }}
+            />
+            Urlaub
+          </span>
+        </div>
       </section>
 
       <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
@@ -964,6 +966,38 @@ export default function RozpisApp() {
           )}
         </ul>
       </section>
+
+      <nav className="dock" aria-label="Schnellaktionen">
+        <button
+          type="button"
+          className="btn btn-accent"
+          onClick={() => setModal({ type: "shopping" })}
+        >
+          Einkauf
+        </button>
+        <button
+          type="button"
+          className="btn btn-reserve"
+          onClick={() => setModal({ type: "reservation" })}
+        >
+          Res.
+        </button>
+        <button
+          type="button"
+          className="btn btn-leave"
+          onClick={() => setModal({ type: "leave" })}
+          disabled={!who}
+        >
+          Frei
+        </button>
+        <button
+          type="button"
+          className="btn btn-team"
+          onClick={() => setModal({ type: "people" })}
+        >
+          Team
+        </button>
+      </nav>
 
       {modal?.type === "day" ? (
         <DayModal
