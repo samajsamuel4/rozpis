@@ -12,6 +12,10 @@ import type {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Authenticated schedule read only. Anonymous GET must 401 — there is no
+ * public/redacted payload path in this route.
+ */
 export async function GET(request: NextRequest) {
   const denied = assertCanAccess(request);
   if (denied) return denied;

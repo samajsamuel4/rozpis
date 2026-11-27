@@ -23,6 +23,7 @@ function normalizeTime(value: string | undefined, fallback: string): string {
   return TIME_RE.test(v) ? v : fallback;
 }
 
+/** Roster read requires the same team EDIT_CODE as the entry gate. */
 export async function GET(request: NextRequest) {
   const denied = assertCanAccess(request);
   if (denied) return denied;
