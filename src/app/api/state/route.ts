@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { monthBounds } from "@/lib/dates";
 import { isSampleMode, sql } from "@/lib/db";
-import type { LeaveRequest, Person, Shift } from "@/lib/types";
+import type { LeaveRequest, Person, Reservation, Shift } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +46,22 @@ export async function GET(request: NextRequest) {
     [start, end],
   );
 
+  const reservations = await sql<Reservation>(
+    `select id, reservation_date::text as reservation_date,
+            reservation_time, guest_count, guest_name, note,
+            created_at::text
+     from reservations
+     where reservation_date >= $1::date and reservation_date <= $2::date
+     order by reservation_date, reservation_time, guest_name`,
+    [start, end],
+  );
+
   return NextResponse.json({
     sampleMode: isSampleMode(),
     people,
     shifts,
     leave,
+    reservations,
     year,
     month,
   });
