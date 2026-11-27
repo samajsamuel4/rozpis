@@ -129,8 +129,8 @@ export default function RozpisApp() {
       setError("Bitte Bearbeitungscode eingeben");
       return;
     }
-    if (trimmed.length < 12) {
-      setError("Team-Code muss mindestens 12 Zeichen haben");
+    if (trimmed.length < 4) {
+      setError("Team-Code muss mindestens 4 Zeichen haben");
       return;
     }
     setEditCode(trimmed);
@@ -481,7 +481,7 @@ export default function RozpisApp() {
             </p>
             <p className="mt-2 max-w-2xl text-base text-[var(--ink-soft)] sm:text-lg">
               Dienstplan und Gästezahlen sind öffentlich. Gastnamen und Notizen
-              nur mit Team-Code (mind. 12 Zeichen).
+              nur mit Team-Code (mind. 4 Zeichen).
             </p>
           </div>
           {unlocked ? (
