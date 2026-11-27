@@ -153,17 +153,76 @@ export function assertSameOrigin(
   return null;
 }
 
+type SensitiveRead =
+  | { unlocked: true; block?: undefined }
+  | { unlocked: false; block?: undefined }
+  | { unlocked: false; block: NextResponse };
+
 /**
- * Silent check for sensitive reads (guest names / notes).
- * Invalid or missing codes return false without recording a failure — public
- * callers just get redacted data; brute-force lockouts stay on writes.
+ * Authorize sensitive schedule reads (guest names / leave notes).
+ * - Missing code → public/redacted payload (no oracle field).
+ * - Wrong code → same public payload, but records a failure like writes.
+ * - Lockout → 429 (same message as mutations).
+ * - Valid code → unlocked; clears failure bucket.
  */
-export function hasValidEditCode(request: NextRequest): boolean {
+export function resolveSensitiveRead(request: NextRequest): SensitiveRead {
+  const now = Date.now();
+  const key = clientKey(request);
+
+  const lockedUntil = isLockedOut(key, now);
+  if (lockedUntil) {
+    const retryAfter = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
+    return {
+      unlocked: false,
+      block: NextResponse.json(
+        {
+          error:
+            "Zu viele falsche Codes. Bitte später erneut versuchen.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(retryAfter) },
+        },
+      ),
+    };
+  }
+
   const expected = configuredEditCode();
-  if (!expected || expected.length < MIN_CODE_LENGTH) return false;
   const provided = request.headers.get("x-edit-code")?.trim() ?? "";
-  if (!provided) return false;
-  return codesMatch(provided, expected);
+
+  // No header: public calendar only — do not count as an auth failure.
+  if (!provided) {
+    return { unlocked: false };
+  }
+
+  if (
+    !expected ||
+    expected.length < MIN_CODE_LENGTH ||
+    !codesMatch(provided, expected)
+  ) {
+    const until = recordAuthFailure(key, now);
+    if (until) {
+      const retryAfter = Math.max(1, Math.ceil((until - now) / 1000));
+      return {
+        unlocked: false,
+        block: NextResponse.json(
+          {
+            error:
+              "Zu viele falsche Codes. Bitte später erneut versuchen.",
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(retryAfter) },
+          },
+        ),
+      };
+    }
+    // Identical to missing-code outcome: no detailsUnlocked oracle.
+    return { unlocked: false };
+  }
+
+  clearAuthFailures(key);
+  return { unlocked: true };
 }
 
 /**

@@ -43,12 +43,23 @@ export type Reservation = {
   created_at: string;
 };
 
+/** Public calendar aggregate — no guest names or notes. */
+export type ReservationDayTotal = {
+  date: string;
+  guests: number;
+  count: number;
+};
+
 export type AppState = {
   sampleMode: boolean;
   people: Person[];
   shifts: Shift[];
-  leave: LeaveRequest[];
+  /** Leave notes omitted when detailsUnlocked is false. */
+  leave: Array<Omit<LeaveRequest, "note"> & { note?: string }>;
+  /** Empty for public reads; full rows only with valid X-Edit-Code. */
   reservations: Reservation[];
+  /** Per-day guest totals (safe for public calendar chips). */
+  reservationTotals: ReservationDayTotal[];
   year: number;
   month: number;
   /** True when response includes guest names/notes (valid X-Edit-Code). */
