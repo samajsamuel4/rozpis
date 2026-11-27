@@ -517,13 +517,11 @@ export default function RozpisApp() {
     return (
       <div className="gate-shell">
         <div className="gate-panel">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--ink-soft)]">
-            Dienstplan
-          </p>
-          <h1 className="brand-title mt-3 text-[clamp(3.4rem,16vw,6rem)]">
+          <p className="eyebrow">Dienstplan</p>
+          <h1 className="brand-title mt-3 text-[clamp(3.6rem,17vw,5.8rem)]">
             FitzTeam
           </h1>
-          <p className="mt-4 text-[var(--ink-soft)]">Laden…</p>
+          <p className="mt-5 text-[var(--ink-soft)]">Laden…</p>
         </div>
       </div>
     );
@@ -533,13 +531,11 @@ export default function RozpisApp() {
     return (
       <div className="gate-shell">
         <div className="gate-panel">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--ink-soft)]">
-            Dienstplan
-          </p>
-          <h1 className="brand-title mt-3 text-[clamp(3.4rem,16vw,6rem)]">
+          <p className="eyebrow">Dienstplan</p>
+          <h1 className="brand-title mt-3 text-[clamp(3.6rem,17vw,5.8rem)]">
             FitzTeam
           </h1>
-          <p className="mt-4 max-w-sm text-base leading-relaxed text-[var(--ink-soft)]">
+          <p className="mt-5 max-w-[18rem] text-[0.98rem] leading-relaxed text-[var(--ink-soft)]">
             Team-Zugang. Code eingeben, um den Plan zu öffnen.
           </p>
           <form
@@ -584,13 +580,11 @@ export default function RozpisApp() {
   }
 
   return (
-    <div className="app-shell mx-auto min-h-screen w-full px-3 pb-8 pt-4">
-      <header className="anim-rise mb-5 flex items-end justify-between gap-3">
+    <div className="app-shell mx-auto min-h-screen w-full px-3.5 pb-10 pt-5">
+      <header className="anim-rise mb-6 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--ink-soft)]">
-            Dienstplan
-          </p>
-          <h1 className="brand-title text-[clamp(2.2rem,11vw,3.2rem)]">
+          <p className="eyebrow mb-1.5">Dienstplan</p>
+          <h1 className="brand-title text-[clamp(2.4rem,12vw,3.4rem)]">
             FitzTeam
           </h1>
           {state?.sampleMode ? (
@@ -599,18 +593,16 @@ export default function RozpisApp() {
         </div>
         <button
           type="button"
-          className="btn btn-ghost px-4 text-sm"
+          className="btn btn-ghost px-3.5 text-sm"
           onClick={lockEditing}
         >
           Abmelden
         </button>
       </header>
 
-      <section className="anim-rise mb-4 flex flex-col gap-3">
+      <section className="anim-rise mb-5 flex flex-col gap-3.5">
         <label className="flex w-full flex-col gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
-            Wer bin ich
-          </span>
+          <span className="eyebrow">Wer bin ich</span>
           <select
             className="field"
             value={whoId ?? ""}
@@ -630,24 +622,24 @@ export default function RozpisApp() {
           </select>
         </label>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="action-grid">
           <button
             type="button"
-            className="btn btn-accent px-2 text-sm"
+            className="btn btn-accent"
             onClick={() => setModal({ type: "shopping" })}
           >
             Einkauf
           </button>
           <button
             type="button"
-            className="btn btn-reserve px-2 text-sm"
+            className="btn btn-reserve"
             onClick={() => setModal({ type: "reservation" })}
           >
             Reservierung
           </button>
           <button
             type="button"
-            className="btn btn-leave px-2 text-sm"
+            className="btn btn-leave"
             onClick={() => setModal({ type: "leave" })}
             disabled={!who}
           >
@@ -655,7 +647,7 @@ export default function RozpisApp() {
           </button>
           <button
             type="button"
-            className="btn btn-team px-2 text-sm"
+            className="btn btn-team"
             onClick={() => setModal({ type: "people" })}
           >
             Team
@@ -664,14 +656,14 @@ export default function RozpisApp() {
       </section>
 
       {!loading && (state?.people.length ?? 0) === 0 ? (
-        <div className="mb-4 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--ink-soft)]">
+        <div className="surface-quiet mb-4 px-4 py-3 text-sm text-[var(--ink-soft)]">
           Noch keine Kollegen. Öffne{" "}
           <button
             type="button"
             className="font-semibold text-[var(--gold)] underline"
             onClick={() => setModal({ type: "people" })}
           >
-            Kollegen
+            Team
           </button>{" "}
           und lege den ersten Namen an.
         </div>
@@ -693,22 +685,22 @@ export default function RozpisApp() {
         </div>
       ) : null}
 
-      <section className="surface anim-rise p-3 sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-2">
+      <section className="surface anim-rise p-3.5 sm:p-5">
+        <div className="calendar-nav mb-4 flex items-center justify-between gap-2">
           <button
             type="button"
-            className="btn btn-ghost px-3"
+            className="btn btn-ghost"
             onClick={() => shiftMonth(-1)}
             aria-label="Voriger Monat"
           >
             ←
           </button>
-          <h2 className="brand-title text-center text-xl sm:text-2xl">
+          <h2 className="section-title text-center text-xl sm:text-2xl">
             {monthTitle(year, month)}
           </h2>
           <button
             type="button"
-            className="btn btn-ghost px-3"
+            className="btn btn-ghost"
             onClick={() => shiftMonth(1)}
             aria-label="Nächster Monat"
           >
@@ -716,17 +708,17 @@ export default function RozpisApp() {
           </button>
         </div>
 
-        <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[0.68rem] font-semibold uppercase tracking-wide text-[var(--ink-soft)] sm:gap-2 sm:text-xs">
+        <div className="weekday-row">
           {weekdayLabels().map((d) => (
             <div key={d}>{d}</div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+        <div className="day-grid">
           {cells.map((cell, idx) => {
             if (!cell.date) {
               return (
-                <div key={`e-${idx}`} className="min-h-[4.2rem] sm:min-h-[6.5rem]" />
+                <div key={`e-${idx}`} className="min-h-[4.4rem] sm:min-h-[6.2rem]" />
               );
             }
             const dayShifts = shiftsByDate.get(cell.date) ?? [];
@@ -737,14 +729,14 @@ export default function RozpisApp() {
               <button
                 key={cell.date}
                 type="button"
-                className={`day-cell flex min-h-[4.2rem] flex-col rounded-xl border border-[var(--line)] bg-white/[0.06] p-1 text-left sm:min-h-[6.5rem] sm:rounded-2xl sm:p-2 ${
-                  isToday ? "ring-2 ring-[var(--teal)]/75" : ""
+                className={`day-cell flex min-h-[4.4rem] flex-col rounded-[12px] border border-[var(--line)] bg-white/[0.035] p-1 text-left sm:min-h-[6.2rem] sm:rounded-xl sm:p-1.5 ${
+                  isToday ? "is-today" : ""
                 }`}
                 onClick={() => setModal({ type: "day", date: cell.date! })}
               >
                 <span
-                  className={`mb-1 text-xs font-bold sm:text-sm ${
-                    isToday ? "text-[var(--teal)]" : "text-[var(--ink)]"
+                  className={`mb-1 text-[0.78rem] font-bold sm:text-sm ${
+                    isToday ? "text-[var(--gold)]" : "text-[var(--ink)]"
                   }`}
                 >
                   {cell.day}
@@ -752,12 +744,12 @@ export default function RozpisApp() {
                 <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
                   {dayRes && dayRes.guests > 0 ? (
                     <span
-                      className="chip text-[0.62rem] font-bold sm:text-[0.7rem]"
+                      className="chip"
                       style={{
                         background: "var(--reserve-soft)",
-                        color: "var(--reserve)",
+                        color: "#efd89a",
                         border:
-                          "1px solid color-mix(in srgb, var(--reserve) 50%, transparent)",
+                          "1px solid color-mix(in srgb, var(--reserve) 40%, transparent)",
                       }}
                       title={`${dayRes.count} Reservierung(en), ${dayRes.guests} Gäste`}
                     >
@@ -770,11 +762,11 @@ export default function RozpisApp() {
                   {dayShifts.slice(0, 1).map((s) => (
                     <span
                       key={s.id}
-                      className="chip text-[0.62rem] text-white sm:text-[0.72rem]"
+                      className="chip text-white"
                       style={{
                         background: WORK_CHIP_BG,
                         border:
-                          "1px solid color-mix(in srgb, var(--work-deep) 40%, transparent)",
+                          "1px solid color-mix(in srgb, var(--work-deep) 35%, transparent)",
                       }}
                       title={`${s.person_name} ${s.start_time}–${s.end_time} (Arbeit)`}
                     >
@@ -792,7 +784,7 @@ export default function RozpisApp() {
                     return (
                       <span
                         key={`l-${l.id}`}
-                        className="chip text-[0.62rem] sm:text-[0.7rem]"
+                        className="chip"
                         style={{
                           background: colors.bg,
                           color: colors.fg,
@@ -817,45 +809,45 @@ export default function RozpisApp() {
           })}
         </div>
         {loading ? (
-          <p className="mt-3 text-sm text-[var(--ink-soft)]">Lade…</p>
+          <p className="mt-3 text-sm text-[var(--ink-muted)]">Lade…</p>
         ) : null}
       </section>
 
       <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-          <h3 className="brand-title text-xl">Reservierungen</h3>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          <h3 className="section-title text-xl">Reservierungen</h3>
           <button
             type="button"
             className="btn btn-primary px-3 py-2 text-sm"
             disabled={!unlocked}
             onClick={() => setModal({ type: "reservation" })}
           >
-            + Reservierung
+            + Neu
           </button>
         </div>
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-2.5">
           {(state?.reservations?.length ?? 0) > 0 ? (
             (state?.reservations ?? []).map((r) => (
               <li
                 key={r.id}
-                className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="list-row"
                 style={{
                   background: "var(--reserve-soft)",
                   borderColor:
-                    "color-mix(in srgb, var(--reserve) 45%, transparent)",
+                    "color-mix(in srgb, var(--reserve) 32%, transparent)",
                 }}
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <strong>{r.guest_name.trim() || "Reservierung"}</strong>
                     <span
-                      className="rounded-lg px-2 py-0.5 text-xs font-semibold text-[#1a1410]"
+                      className="rounded-full px-2 py-0.5 text-xs font-semibold text-[#1a1410]"
                       style={{ background: "var(--reserve)" }}
                     >
                       {r.guest_count} Gäste
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-[var(--ink-soft)]">
+                  <p className="mt-1 text-sm text-[var(--ink-muted)]">
                     {formatDayAt(asDay(r.reservation_date))} ·{" "}
                     {r.reservation_time}
                     {r.note ? ` · ${r.note}` : ""}
@@ -875,22 +867,21 @@ export default function RozpisApp() {
             (state?.reservationTotals ?? []).map((t) => (
               <li
                 key={t.date}
-                className="rounded-2xl border px-3 py-2 text-sm"
+                className="list-row text-sm"
                 style={{
                   background: "var(--reserve-soft)",
                   borderColor:
-                    "color-mix(in srgb, var(--reserve) 45%, transparent)",
+                    "color-mix(in srgb, var(--reserve) 32%, transparent)",
                 }}
               >
                 <strong>{formatDayAt(asDay(t.date))}</strong>
-                <span className="text-[var(--ink-soft)]">
-                  {" "}
-                  · {t.count} Res. · {t.guests} Gäste
+                <span className="text-[var(--ink-muted)]">
+                  {t.count} Res. · {t.guests} Gäste
                 </span>
               </li>
             ))
           ) : (
-            <li className="text-sm text-[var(--ink-soft)]">
+            <li className="text-sm text-[var(--ink-muted)]">
               Noch keine Reservierungen in diesem Monat.
             </li>
           )}
@@ -898,10 +889,10 @@ export default function RozpisApp() {
       </section>
 
       <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
-        <h3 className="brand-title mb-3 text-xl">Abwesenheiten</h3>
-        <ul className="flex flex-col gap-3">
+        <h3 className="section-title mb-4 text-xl">Abwesenheiten</h3>
+        <ul className="flex flex-col gap-2.5">
           {(state?.leave ?? []).length === 0 ? (
-            <li className="text-sm text-[var(--ink-soft)]">
+            <li className="text-sm text-[var(--ink-muted)]">
               Noch keine Anträge in diesem Monat.
             </li>
           ) : (
@@ -911,7 +902,7 @@ export default function RozpisApp() {
               return (
               <li
                 key={l.id}
-                className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="list-row"
                 style={{
                   background: colors.bg,
                   borderColor: colors.border,
@@ -1099,7 +1090,7 @@ function DayModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="day-title" className="brand-title text-2xl">
+            <h3 id="day-title" className="section-title text-2xl">
               Tag {formatDayAt(date)}
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
@@ -1322,7 +1313,7 @@ function LeaveModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="leave-title" className="brand-title text-2xl">
+            <h3 id="leave-title" className="section-title text-2xl">
               Abwesenheit
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
@@ -1460,7 +1451,7 @@ function PeopleModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="people-title" className="brand-title text-2xl">
+            <h3 id="people-title" className="section-title text-2xl">
               Kollegen
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
@@ -1659,7 +1650,7 @@ function ReservationModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="res-title" className="brand-title text-2xl">
+            <h3 id="res-title" className="section-title text-2xl">
               Reservierung
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
