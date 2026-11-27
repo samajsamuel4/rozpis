@@ -21,7 +21,6 @@ import type {
 import {
   LEAVE_TYPE_AT,
   LEAVE_TYPE_COLORS,
-  LEAVE_TYPE_SHORT_AT,
   WORK_CHIP_BG,
 } from "@/lib/types";
 import ShoppingList from "@/components/ShoppingList";
@@ -762,28 +761,21 @@ export default function RozpisApp() {
                       </span>
                     </span>
                   ))}
-                  {dayLeave.slice(0, 1).map((l) => {
+                  {dayLeave.slice(0, 2).map((l) => {
                     const kind = l.leave_type ?? "free_day";
                     const colors = LEAVE_TYPE_COLORS[kind];
                     return (
                       <span
                         key={`l-${l.id}`}
-                        className="chip"
+                        className="chip chip-leave"
                         style={{
                           background: colors.bg,
                           color: colors.fg,
                           border: `1px solid ${colors.border}`,
                         }}
-                        title={`${l.person_name}: ${LEAVE_TYPE_AT[kind]} (${STATUS_AT[l.status]})`}
+                        title={`${l.person_name}: Frei (${STATUS_AT[l.status]})`}
                       >
-                        <span className="hidden sm:inline">
-                          {l.person_name?.split(" ")[0]}{" "}
-                          {LEAVE_TYPE_SHORT_AT[kind]}
-                        </span>
-                        <span className="sm:hidden">
-                          {(l.person_name ?? "?").slice(0, 1)}+
-                          {kind === "vacation" ? "U" : "F"}
-                        </span>
+                        {l.person_name} frei
                       </span>
                     );
                   })}
@@ -813,13 +805,6 @@ export default function RozpisApp() {
               style={{ background: "var(--free-day)" }}
             />
             Frei
-          </span>
-          <span className="legend-item">
-            <span
-              className="legend-dot"
-              style={{ background: "var(--vacation)" }}
-            />
-            Urlaub
           </span>
         </div>
       </section>
@@ -929,14 +914,11 @@ export default function RozpisApp() {
                     <span
                       className="rounded-lg px-2 py-0.5 text-xs font-semibold"
                       style={{
-                        background:
-                          kind === "vacation"
-                            ? "var(--vacation)"
-                            : "var(--free-day)",
-                        color: "#fff",
+                        background: "var(--free-day)",
+                        color: "#2a1010",
                       }}
                     >
-                      {LEAVE_TYPE_AT[kind]}
+                      Frei
                     </span>
                     <span className="rounded-lg bg-black/20 px-2 py-0.5 text-xs font-semibold text-[var(--ink-soft)]">
                       {STATUS_AT[l.status]}
@@ -1308,7 +1290,6 @@ function LeaveModal({
 }) {
   const today = toISODate(new Date());
   const [personId, setPersonId] = useState(who?.id ?? people[0]?.id ?? 0);
-  const [leaveType, setLeaveType] = useState<LeaveType>("free_day");
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState(today);
   const [note, setNote] = useState("");
@@ -1325,11 +1306,10 @@ function LeaveModal({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h3 id="leave-title" className="section-title text-2xl">
-              Abwesenheit
+              Frei
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
-              Freier Tag oder Urlaub wählen. Status bleibt „Offen“, bis jemand
-              genehmigt.
+              Freien Tag eintragen. Status bleibt „Offen“, bis jemand genehmigt.
             </p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
@@ -1345,21 +1325,10 @@ function LeaveModal({
               start_date: start,
               end_date: end,
               note,
-              leave_type: leaveType,
+              leave_type: "free_day",
             });
           }}
         >
-          <label className="block text-sm font-semibold">
-            Art
-            <select
-              className="field mt-1"
-              value={leaveType}
-              onChange={(e) => setLeaveType(e.target.value as LeaveType)}
-            >
-              <option value="free_day">Freier Tag</option>
-              <option value="vacation">Urlaub</option>
-            </select>
-          </label>
           <label className="block text-sm font-semibold">
             Für wen
             <select
