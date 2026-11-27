@@ -24,6 +24,11 @@ import {
   WORK_CHIP_BG,
 } from "@/lib/types";
 import ShoppingList from "@/components/ShoppingList";
+import {
+  isClosedDay,
+  openingHoursFor,
+  OPENING_HOURS_SUMMARY,
+} from "@/lib/hours";
 
 const WHO_KEY = "rozpis-who-am-i";
 const EDIT_KEY = "rozpis-edit-code";
@@ -706,13 +711,14 @@ export default function RozpisApp() {
             const dayLeave = leaveByDate.get(cell.date) ?? [];
             const dayRes = reservationTotalsByDate.get(cell.date);
             const isToday = cell.date === todayIso;
+            const closed = isClosedDay(cell.date);
             return (
               <button
                 key={cell.date}
                 type="button"
                 className={`day-cell flex min-h-[4.8rem] flex-col rounded-[12px] border border-[var(--line)] bg-black/25 p-1 text-left sm:min-h-[6.4rem] sm:rounded-xl sm:p-1.5 ${
                   isToday ? "is-today" : ""
-                }`}
+                } ${closed ? "is-closed" : ""}`}
                 onClick={() => setModal({ type: "day", date: cell.date! })}
               >
                 <span
@@ -725,6 +731,9 @@ export default function RozpisApp() {
                   {cell.day}
                 </span>
                 <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+                  {closed ? (
+                    <span className="chip chip-closed">geschlossen</span>
+                  ) : null}
                   {dayRes && dayRes.guests > 0 ? (
                     <span
                       className="chip"
@@ -806,7 +815,17 @@ export default function RozpisApp() {
             />
             Frei
           </span>
+          <span className="legend-item">
+            <span
+              className="legend-dot"
+              style={{ background: "rgba(243, 235, 224, 0.35)" }}
+            />
+            Geschlossen
+          </span>
         </div>
+        <p className="mt-3 text-[0.72rem] leading-relaxed text-[var(--ink-muted)]">
+          {OPENING_HOURS_SUMMARY}
+        </p>
       </section>
 
       <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
@@ -1055,22 +1074,22 @@ function DayModal({
 }) {
   const mine = shifts.find((s) => s.person_id === who?.id);
   const initialPerson = who ?? people[0] ?? null;
+  const hours = openingHoursFor(date);
+  const closed = isClosedDay(date);
   const [personId, setPersonId] = useState(initialPerson?.id ?? 0);
   const [start, setStart] = useState(
-    mine?.start_time ?? initialPerson?.work_start ?? "08:00",
+    mine?.start_time ?? hours?.start ?? "16:00",
   );
-  const [end, setEnd] = useState(
-    mine?.end_time ?? initialPerson?.work_end ?? "16:00",
-  );
+  const [end, setEnd] = useState(mine?.end_time ?? hours?.end ?? "22:00");
   const [note, setNote] = useState(mine?.note ?? "");
 
   useEffect(() => {
     const current = shifts.find((s) => s.person_id === personId);
-    const person = people.find((p) => p.id === personId);
-    setStart(current?.start_time ?? person?.work_start ?? "08:00");
-    setEnd(current?.end_time ?? person?.work_end ?? "16:00");
+    const dayHours = openingHoursFor(date);
+    setStart(current?.start_time ?? dayHours?.start ?? "16:00");
+    setEnd(current?.end_time ?? dayHours?.end ?? "22:00");
     setNote(current?.note ?? "");
-  }, [personId, shifts, people]);
+  }, [personId, shifts, date]);
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -1087,7 +1106,11 @@ function DayModal({
               Tag {formatDayAt(date)}
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
-              Schicht / Arbeitszeit setzen oder ändern.
+              {closed
+                ? "Montag — Restaurant geschlossen."
+                : hours
+                  ? `Öffnungszeiten ${hours.start}–${hours.end}. Schicht setzen oder ändern.`
+                  : "Schicht / Arbeitszeit setzen oder ändern."}
             </p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>

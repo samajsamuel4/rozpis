@@ -271,6 +271,24 @@ a {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 22%, transparent);
 }
 
+.day-cell.is-closed {
+  background: rgba(0, 0, 0, 0.38);
+  border-color: rgba(243, 235, 224, 0.08);
+  opacity: 0.78;
+}
+
+.chip-closed {
+  background: rgba(243, 235, 224, 0.08);
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+  white-space: normal;
+  line-height: 1.15;
+  border-radius: 8px;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .btn {
   border: none;
   border-radius: 12px;
