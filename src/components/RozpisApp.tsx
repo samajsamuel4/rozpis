@@ -24,6 +24,7 @@ import {
   LEAVE_TYPE_SHORT_AT,
   WORK_CHIP_BG,
 } from "@/lib/types";
+import ShoppingList from "@/components/ShoppingList";
 
 const WHO_KEY = "rozpis-who-am-i";
 const EDIT_KEY = "rozpis-edit-code";
@@ -653,6 +654,8 @@ export default function RozpisApp() {
           </button>
         </div>
       </section>
+
+      <ShoppingList editCode={editCode} onError={setError} />
 
       {!loading && (state?.people.length ?? 0) === 0 ? (
         <div className="mb-4 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--ink-soft)]">
