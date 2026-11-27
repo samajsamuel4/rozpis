@@ -60,12 +60,16 @@ export default function RozpisApp() {
   const [editDraft, setEditDraft] = useState("");
   const [unlocked, setUnlocked] = useState(false);
 
-  const load = useCallback(async (y: number, m: number) => {
+  const load = useCallback(async (y: number, m: number, code?: string) => {
     setLoading(true);
     setError(null);
     try {
+      const headers: HeadersInit = {};
+      const token = (code ?? editCode).trim();
+      if (token) headers["x-edit-code"] = token;
       const res = await fetch(`/api/state?year=${y}&month=${m}`, {
         cache: "no-store",
+        headers,
       });
       if (!res.ok) throw new Error("Dienstplan konnte nicht geladen werden");
       const data = (await res.json()) as AppState;
@@ -75,7 +79,7 @@ export default function RozpisApp() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [editCode]);
 
   useEffect(() => {
     void load(year, month);
@@ -115,10 +119,15 @@ export default function RozpisApp() {
       setError("Bitte Bearbeitungscode eingeben");
       return;
     }
+    if (trimmed.length < 8) {
+      setError("Team-Code muss mindestens 8 Zeichen haben");
+      return;
+    }
     setEditCode(trimmed);
     sessionStorage.setItem(EDIT_KEY, trimmed);
     setUnlocked(true);
     setError(null);
+    void load(year, month, trimmed);
   }
 
   function lockEditing() {
@@ -126,6 +135,7 @@ export default function RozpisApp() {
     setEditCode("");
     setEditDraft("");
     sessionStorage.removeItem(EDIT_KEY);
+    void load(year, month, "");
   }
 
   async function requireUnlock(): Promise<boolean> {
@@ -450,8 +460,8 @@ export default function RozpisApp() {
               Bearbeitung
             </p>
             <p className="mt-2 max-w-2xl text-base text-[var(--ink-soft)] sm:text-lg">
-              Kalender ist für alle lesbar. Schichten, freie Tage, Urlaub und
-              Kollegen brauchen den Team-Code (mind. 8 Zeichen).
+              Dienstplan und Gästezahlen sind öffentlich. Gastnamen und Notizen
+              nur mit Team-Code (mind. 8 Zeichen).
             </p>
           </div>
           {unlocked ? (
@@ -735,7 +745,9 @@ export default function RozpisApp() {
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <strong>{r.guest_name}</strong>
+                    <strong>
+                      {r.guest_name.trim() || "Reservierung"}
+                    </strong>
                     <span
                       className="rounded-lg px-2 py-0.5 text-xs font-semibold text-[#1a1410]"
                       style={{ background: "var(--reserve)" }}
@@ -1000,8 +1012,8 @@ function DayModal({
                 }}
               >
                 <span>
-                  <strong>{r.guest_name}</strong> · {r.reservation_time} ·{" "}
-                  {r.guest_count} Gäste
+                  <strong>{r.guest_name.trim() || "Reservierung"}</strong> ·{" "}
+                  {r.reservation_time} · {r.guest_count} Gäste
                   {r.note ? ` · ${r.note}` : ""}
                 </span>
                 <button
