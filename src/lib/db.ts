@@ -95,4 +95,19 @@ async function seedSample(db: PGlite): Promise<void> {
      values ($1, $2, $3, $4, 'approved', 'free_day')`,
     [byName.Peter, iso(25), iso(26), "Frei"],
   );
+
+  const reservations: Array<[string, string, number, string, string]> = [
+    [iso(5), "18:30", 4, "Müller", "Fensterplatz"],
+    [iso(5), "20:00", 2, "Horváth", ""],
+    [iso(12), "19:00", 6, "Firma Adler", "Business"],
+    [iso(18), "12:30", 3, "Novak", "Mittag"],
+  ];
+  for (const [date, time, count, name, note] of reservations) {
+    await db.query(
+      `insert into reservations
+         (reservation_date, reservation_time, guest_count, guest_name, note)
+       values ($1, $2, $3, $4, $5)`,
+      [date, time, count, name, note],
+    );
+  }
 }

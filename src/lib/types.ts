@@ -33,11 +33,22 @@ export type LeaveRequest = {
   person_color?: string;
 };
 
+export type Reservation = {
+  id: number;
+  reservation_date: string;
+  reservation_time: string;
+  guest_count: number;
+  guest_name: string;
+  note: string;
+  created_at: string;
+};
+
 export type AppState = {
   sampleMode: boolean;
   people: Person[];
   shifts: Shift[];
   leave: LeaveRequest[];
+  reservations: Reservation[];
   year: number;
   month: number;
 };

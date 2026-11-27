@@ -15,6 +15,7 @@ import type {
   LeaveRequest,
   LeaveType,
   Person,
+  Reservation,
   Shift,
 } from "@/lib/types";
 import {
@@ -31,6 +32,7 @@ type Modal =
   | { type: "day"; date: string }
   | { type: "leave" }
   | { type: "people" }
+  | { type: "reservation"; date?: string }
   | null;
 
 const STATUS_AT: Record<LeaveRequest["status"], string> = {
@@ -162,6 +164,28 @@ export default function RozpisApp() {
     }
     return map;
   }, [state]);
+
+  const reservationsByDate = useMemo(() => {
+    const map = new Map<string, Reservation[]>();
+    for (const r of state?.reservations ?? []) {
+      const key = asDay(r.reservation_date);
+      const list = map.get(key) ?? [];
+      list.push({ ...r, reservation_date: key });
+      map.set(key, list);
+    }
+    return map;
+  }, [state]);
+
+  const reservationTotalsByDate = useMemo(() => {
+    const map = new Map<string, { count: number; guests: number }>();
+    for (const [key, list] of reservationsByDate) {
+      map.set(key, {
+        count: list.length,
+        guests: list.reduce((sum, r) => sum + Number(r.guest_count || 0), 0),
+      });
+    }
+    return map;
+  }, [reservationsByDate]);
 
   function pickWho(id: number) {
     setWhoId(id);
@@ -325,6 +349,55 @@ export default function RozpisApp() {
     }
   }
 
+  async function saveReservation(input: {
+    reservation_date: string;
+    reservation_time: string;
+    guest_count: number;
+    guest_name: string;
+    note: string;
+  }) {
+    if (!(await requireUnlock())) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: mutateHeaders(),
+        body: JSON.stringify(input),
+      });
+      if (!res.ok)
+        throw new Error(
+          await readApiError(res, "Reservierung konnte nicht gespeichert werden"),
+        );
+      await load(year, month);
+      setModal(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Fehler");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteReservation(id: number) {
+    if (!confirm("Diese Reservierung wirklich löschen?")) return;
+    if (!(await requireUnlock())) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/reservations?id=${id}`, {
+        method: "DELETE",
+        headers: { "x-edit-code": editCode },
+      });
+      if (!res.ok)
+        throw new Error(
+          await readApiError(res, "Reservierung konnte nicht gelöscht werden"),
+        );
+      await load(year, month);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Fehler");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function removePerson(id: number) {
     if (
       !confirm(
@@ -449,6 +522,14 @@ export default function RozpisApp() {
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <button
             type="button"
+            className="btn btn-primary flex-1 sm:flex-none"
+            onClick={() => setModal({ type: "reservation" })}
+            disabled={!unlocked}
+          >
+            Reservierung
+          </button>
+          <button
+            type="button"
             className="btn btn-accent anim-pulse-once flex-1 sm:flex-none"
             onClick={() => setModal({ type: "leave" })}
             disabled={!who || !unlocked}
@@ -534,6 +615,7 @@ export default function RozpisApp() {
             }
             const dayShifts = shiftsByDate.get(cell.date) ?? [];
             const dayLeave = leaveByDate.get(cell.date) ?? [];
+            const dayRes = reservationTotalsByDate.get(cell.date);
             const isToday = cell.date === todayIso;
             return (
               <button
@@ -552,13 +634,31 @@ export default function RozpisApp() {
                   {cell.day}
                 </span>
                 <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
-                  {dayShifts.slice(0, 2).map((s) => (
+                  {dayRes && dayRes.guests > 0 ? (
+                    <span
+                      className="chip text-[0.62rem] font-bold sm:text-[0.7rem]"
+                      style={{
+                        background: "var(--reserve-soft)",
+                        color: "var(--reserve)",
+                        border:
+                          "1px solid color-mix(in srgb, var(--reserve) 50%, transparent)",
+                      }}
+                      title={`${dayRes.count} Reservierung(en), ${dayRes.guests} Gäste`}
+                    >
+                      <span className="hidden sm:inline">
+                        {dayRes.guests} Gäste · {dayRes.count} Res.
+                      </span>
+                      <span className="sm:hidden">{dayRes.guests}G</span>
+                    </span>
+                  ) : null}
+                  {dayShifts.slice(0, 1).map((s) => (
                     <span
                       key={s.id}
                       className="chip text-[0.62rem] text-white sm:text-[0.72rem]"
                       style={{
                         background: WORK_CHIP_BG,
-                        border: "1px solid color-mix(in srgb, var(--work-deep) 40%, transparent)",
+                        border:
+                          "1px solid color-mix(in srgb, var(--work-deep) 40%, transparent)",
                       }}
                       title={`${s.person_name} ${s.start_time}–${s.end_time} (Arbeit)`}
                     >
@@ -595,11 +695,6 @@ export default function RozpisApp() {
                       </span>
                     );
                   })}
-                  {dayShifts.length + dayLeave.length > 3 ? (
-                    <span className="text-[0.65rem] font-semibold text-[var(--ink-soft)]">
-                      +{dayShifts.length + dayLeave.length - 3}
-                    </span>
-                  ) : null}
                 </div>
               </button>
             );
@@ -608,6 +703,64 @@ export default function RozpisApp() {
         {loading ? (
           <p className="mt-3 text-sm text-[var(--ink-soft)]">Lade…</p>
         ) : null}
+      </section>
+
+      <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <h3 className="brand-title text-xl">Reservierungen</h3>
+          <button
+            type="button"
+            className="btn btn-primary px-3 py-2 text-sm"
+            disabled={!unlocked}
+            onClick={() => setModal({ type: "reservation" })}
+          >
+            + Reservierung
+          </button>
+        </div>
+        <ul className="flex flex-col gap-3">
+          {(state?.reservations ?? []).length === 0 ? (
+            <li className="text-sm text-[var(--ink-soft)]">
+              Noch keine Reservierungen in diesem Monat.
+            </li>
+          ) : (
+            (state?.reservations ?? []).map((r) => (
+              <li
+                key={r.id}
+                className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                style={{
+                  background: "var(--reserve-soft)",
+                  borderColor:
+                    "color-mix(in srgb, var(--reserve) 45%, transparent)",
+                }}
+              >
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong>{r.guest_name}</strong>
+                    <span
+                      className="rounded-lg px-2 py-0.5 text-xs font-semibold text-[#1a1410]"
+                      style={{ background: "var(--reserve)" }}
+                    >
+                      {r.guest_count} Gäste
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-[var(--ink-soft)]">
+                    {formatDayAt(asDay(r.reservation_date))} ·{" "}
+                    {r.reservation_time}
+                    {r.note ? ` · ${r.note}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost px-3 py-2 text-sm text-[var(--leave)]"
+                  disabled={busy || !unlocked}
+                  onClick={() => void deleteReservation(r.id)}
+                >
+                  Löschen
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
       </section>
 
       <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
@@ -693,11 +846,17 @@ export default function RozpisApp() {
           people={state?.people ?? []}
           shifts={(shiftsByDate.get(modal.date) ?? []).slice()}
           leave={leaveByDate.get(modal.date) ?? []}
+          reservations={(reservationsByDate.get(modal.date) ?? []).slice()}
           who={who}
           busy={busy}
+          unlocked={unlocked}
           onClose={() => setModal(null)}
           onSave={saveShift}
           onDeleteShift={(id) => void deleteShift(id)}
+          onAddReservation={() =>
+            setModal({ type: "reservation", date: modal.date })
+          }
+          onDeleteReservation={(id) => void deleteReservation(id)}
         />
       ) : null}
 
@@ -721,6 +880,15 @@ export default function RozpisApp() {
           onRemove={removePerson}
         />
       ) : null}
+
+      {modal?.type === "reservation" ? (
+        <ReservationModal
+          initialDate={modal.date ?? todayIso}
+          busy={busy}
+          onClose={() => setModal(null)}
+          onSubmit={saveReservation}
+        />
+      ) : null}
     </div>
   );
 }
@@ -730,18 +898,24 @@ function DayModal({
   people,
   shifts,
   leave,
+  reservations,
   who,
   busy,
+  unlocked,
   onClose,
   onSave,
   onDeleteShift,
+  onAddReservation,
+  onDeleteReservation,
 }: {
   date: string;
   people: Person[];
   shifts: Shift[];
   leave: LeaveRequest[];
+  reservations: Reservation[];
   who: Person | null;
   busy: boolean;
+  unlocked: boolean;
   onClose: () => void;
   onSave: (input: {
     person_id: number;
@@ -751,6 +925,8 @@ function DayModal({
     note: string;
   }) => Promise<void>;
   onDeleteShift: (id: number) => void;
+  onAddReservation: () => void;
+  onDeleteReservation: (id: number) => void;
 }) {
   const mine = shifts.find((s) => s.person_id === who?.id);
   const initialPerson = who ?? people[0] ?? null;
@@ -792,6 +968,53 @@ function DayModal({
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
             ✕
           </button>
+        </div>
+
+        <div className="mb-4 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
+              Reservierungen (
+              {reservations.reduce((s, r) => s + Number(r.guest_count || 0), 0)}{" "}
+              Gäste)
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary px-3 py-1.5 text-xs"
+              disabled={!unlocked || busy}
+              onClick={onAddReservation}
+            >
+              + Res.
+            </button>
+          </div>
+          {reservations.length === 0 ? (
+            <p className="text-sm text-[var(--ink-soft)]">Keine Reservierungen.</p>
+          ) : (
+            reservations.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm"
+                style={{
+                  background: "var(--reserve-soft)",
+                  borderColor:
+                    "color-mix(in srgb, var(--reserve) 45%, transparent)",
+                }}
+              >
+                <span>
+                  <strong>{r.guest_name}</strong> · {r.reservation_time} ·{" "}
+                  {r.guest_count} Gäste
+                  {r.note ? ` · ${r.note}` : ""}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[var(--leave)] underline"
+                  onClick={() => onDeleteReservation(r.id)}
+                  disabled={busy || !unlocked}
+                >
+                  Löschen
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
         {shifts.length || leave.length ? (
@@ -1255,6 +1478,136 @@ function PeopleModal({
           >
             Hinzufügen
           </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ReservationModal({
+  initialDate,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  initialDate: string;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (input: {
+    reservation_date: string;
+    reservation_time: string;
+    guest_count: number;
+    guest_name: string;
+    note: string;
+  }) => Promise<void>;
+}) {
+  const [date, setDate] = useState(initialDate);
+  const [time, setTime] = useState("19:00");
+  const [guests, setGuests] = useState(2);
+  const [name, setName] = useState("");
+  const [note, setNote] = useState("");
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="modal-sheet"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="res-title"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 id="res-title" className="brand-title text-2xl">
+              Reservierung
+            </h3>
+            <p className="text-sm text-[var(--ink-soft)]">
+              Datum, Uhrzeit, Gästezahl und Name — damit klar ist, wann wie
+              viel los ist.
+            </p>
+          </div>
+          <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void onSubmit({
+              reservation_date: date,
+              reservation_time: time,
+              guest_count: guests,
+              guest_name: name.trim(),
+              note: note.trim(),
+            });
+          }}
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block text-sm font-semibold">
+              Datum
+              <input
+                className="field mt-1"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </label>
+            <label className="block text-sm font-semibold">
+              Uhrzeit
+              <input
+                className="field mt-1"
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                required
+              />
+            </label>
+          </div>
+          <label className="block text-sm font-semibold">
+            Gästezahl
+            <input
+              className="field mt-1"
+              type="number"
+              min={1}
+              max={200}
+              value={guests}
+              onChange={(e) => setGuests(Number(e.target.value) || 1)}
+              required
+            />
+          </label>
+          <label className="block text-sm font-semibold">
+            Name
+            <input
+              className="field mt-1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name / Firma"
+              required
+            />
+          </label>
+          <label className="block text-sm font-semibold">
+            Notiz / was
+            <input
+              className="field mt-1"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="z. B. Fenster, Geburtstag, Business"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={busy || !name.trim()}
+            >
+              Speichern
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              Schließen
+            </button>
+          </div>
         </form>
       </div>
     </div>
