@@ -165,7 +165,6 @@ a {
 
 .app-shell {
   width: min(430px, 100%);
-  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
 }
 
 .control-strip {
