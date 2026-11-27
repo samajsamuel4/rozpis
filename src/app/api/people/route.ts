@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertCanMutate } from "@/lib/access";
 import { sql } from "@/lib/db";
 import type { Person } from "@/lib/types";
 
@@ -23,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = assertCanMutate(request);
+  if (denied) return denied;
+
   const body = (await request.json()) as { name?: string; color?: string };
   const name = body.name?.trim() ?? "";
   if (!name) {
@@ -40,6 +44,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const denied = assertCanMutate(request);
+  if (denied) return denied;
+
   const body = (await request.json()) as {
     id?: number;
     name?: string;
@@ -68,6 +75,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = assertCanMutate(request);
+  if (denied) return denied;
+
   const id = Number(request.nextUrl.searchParams.get("id"));
   if (!id) {
     return NextResponse.json({ error: "Chýba id" }, { status: 400 });

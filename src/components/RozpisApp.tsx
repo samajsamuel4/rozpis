@@ -13,6 +13,9 @@ import {
 import type { AppState, LeaveRequest, Person, Shift } from "@/lib/types";
 
 const WHO_KEY = "rozpis-who-am-i";
+const EDIT_KEY = "rozpis-edit-code";
+/** Shown only in sample / unconfigured mode — matches server FALLBACK_EDIT_CODE. */
+const SAMPLE_EDIT_HINT = "timovy";
 
 type Modal =
   | { type: "day"; date: string }
@@ -41,6 +44,9 @@ export default function RozpisApp() {
   const [whoId, setWhoId] = useState<number | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
+  const [editCode, setEditCode] = useState("");
+  const [editDraft, setEditDraft] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
 
   const load = useCallback(async (y: number, m: number) => {
     setLoading(true);
@@ -66,6 +72,12 @@ export default function RozpisApp() {
   useEffect(() => {
     const raw = localStorage.getItem(WHO_KEY);
     if (raw) setWhoId(Number(raw));
+    const saved = sessionStorage.getItem(EDIT_KEY) ?? "";
+    if (saved) {
+      setEditCode(saved);
+      setEditDraft(saved);
+      setUnlocked(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -77,6 +89,38 @@ export default function RozpisApp() {
   }, [state, whoId]);
 
   const who = state?.people.find((p) => p.id === whoId) ?? null;
+
+  function mutateHeaders(): HeadersInit {
+    return {
+      "content-type": "application/json",
+      "x-edit-code": editCode,
+    };
+  }
+
+  function unlockEditing(code: string) {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setError("Zadajte editačný kód");
+      return;
+    }
+    setEditCode(trimmed);
+    sessionStorage.setItem(EDIT_KEY, trimmed);
+    setUnlocked(true);
+    setError(null);
+  }
+
+  function lockEditing() {
+    setUnlocked(false);
+    setEditCode("");
+    setEditDraft("");
+    sessionStorage.removeItem(EDIT_KEY);
+  }
+
+  async function requireUnlock(): Promise<boolean> {
+    if (unlocked && editCode) return true;
+    setError("Najprv odomknite úpravy tímovým kódom");
+    return false;
+  }
 
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>();
@@ -120,6 +164,11 @@ export default function RozpisApp() {
     setMonth(d.getMonth());
   }
 
+  async function readApiError(res: Response, fallback: string) {
+    const j = (await res.json().catch(() => null)) as { error?: string } | null;
+    return j?.error || fallback;
+  }
+
   async function saveShift(input: {
     person_id: number;
     work_date: string;
@@ -127,14 +176,15 @@ export default function RozpisApp() {
     end_time: string;
     note: string;
   }) {
+    if (!(await requireUnlock())) return;
     setBusy(true);
     try {
       const res = await fetch("/api/shifts", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: mutateHeaders(),
         body: JSON.stringify(input),
       });
-      if (!res.ok) throw new Error("Nepodarilo sa uložiť zmenu");
+      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa uložiť zmenu"));
       await load(year, month);
       setModal(null);
     } catch (e) {
@@ -145,10 +195,14 @@ export default function RozpisApp() {
   }
 
   async function deleteShift(id: number) {
+    if (!(await requireUnlock())) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/shifts?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Nepodarilo sa zmazať zmenu");
+      const res = await fetch(`/api/shifts?id=${id}`, {
+        method: "DELETE",
+        headers: { "x-edit-code": editCode },
+      });
+      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa zmazať zmenu"));
       await load(year, month);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba");
@@ -163,18 +217,16 @@ export default function RozpisApp() {
     end_date: string;
     note: string;
   }) {
+    if (!(await requireUnlock())) return;
     setBusy(true);
     try {
       const res = await fetch("/api/leave", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: mutateHeaders(),
         body: JSON.stringify(input),
       });
       if (!res.ok) {
-        const j = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(j?.error || "Nepodarilo sa požiadať o voľno");
+        throw new Error(await readApiError(res, "Nepodarilo sa požiadať o voľno"));
       }
       await load(year, month);
       setModal(null);
@@ -189,14 +241,15 @@ export default function RozpisApp() {
     id: number,
     status: LeaveRequest["status"],
   ) {
+    if (!(await requireUnlock())) return;
     setBusy(true);
     try {
       const res = await fetch("/api/leave", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: mutateHeaders(),
         body: JSON.stringify({ id, status }),
       });
-      if (!res.ok) throw new Error("Nepodarilo sa zmeniť stav");
+      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa zmeniť stav"));
       await load(year, month);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba");
@@ -206,14 +259,15 @@ export default function RozpisApp() {
   }
 
   async function addPerson(name: string) {
+    if (!(await requireUnlock())) return;
     setBusy(true);
     try {
       const res = await fetch("/api/people", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: mutateHeaders(),
         body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error("Nepodarilo sa pridať kolegu");
+      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa pridať kolegu"));
       const person = (await res.json()) as Person;
       await load(year, month);
       pickWho(person.id);
@@ -225,14 +279,15 @@ export default function RozpisApp() {
   }
 
   async function renamePerson(id: number, name: string) {
+    if (!(await requireUnlock())) return;
     setBusy(true);
     try {
       const res = await fetch("/api/people", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: mutateHeaders(),
         body: JSON.stringify({ id, name }),
       });
-      if (!res.ok) throw new Error("Nepodarilo sa upraviť meno");
+      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa upraviť meno"));
       await load(year, month);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba");
@@ -245,10 +300,14 @@ export default function RozpisApp() {
     if (!confirm("Naozaj zmazať tohto kolegu a všetky jeho zmeny/voľná?")) {
       return;
     }
+    if (!(await requireUnlock())) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/people?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Nepodarilo sa zmazať");
+      const res = await fetch(`/api/people?id=${id}`, {
+        method: "DELETE",
+        headers: { "x-edit-code": editCode },
+      });
+      if (!res.ok) throw new Error(await readApiError(res, "Nepodarilo sa zmazať"));
       await load(year, month);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba");
@@ -281,6 +340,64 @@ export default function RozpisApp() {
         ) : null}
       </header>
 
+      <section className="anim-rise mb-4 rounded-2xl border border-[var(--line)] bg-white/55 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
+              Úpravy
+            </p>
+            <p className="mt-1 text-sm text-[var(--ink-soft)]">
+              Kalendár je na čítanie pre každého. Zmeny, voľno a kolegovia
+              vyžadujú tímový editačný kód.
+              {state?.sampleMode ? (
+                <>
+                  {" "}
+                  Lokálny kód:{" "}
+                  <code className="rounded bg-[var(--mist)] px-1.5 py-0.5 font-semibold text-[var(--spruce)]">
+                    {SAMPLE_EDIT_HINT}
+                  </code>
+                </>
+              ) : null}
+            </p>
+          </div>
+          {unlocked ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-[color-mix(in_srgb,var(--spruce-mid)_16%,white)] px-3 py-1.5 text-sm font-semibold text-[var(--spruce)]">
+                Úpravy odomknuté
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={lockEditing}
+              >
+                Zamknúť
+              </button>
+            </div>
+          ) : (
+            <form
+              className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center"
+              onSubmit={(e) => {
+                e.preventDefault();
+                unlockEditing(editDraft);
+              }}
+            >
+              <input
+                className="field min-w-0 sm:w-44"
+                type="password"
+                autoComplete="off"
+                placeholder="Editačný kód"
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                aria-label="Tímový editačný kód"
+              />
+              <button type="submit" className="btn btn-accent">
+                Odomknúť
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
+
       <section className="anim-rise mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <label className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[220px]">
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)]">
@@ -310,7 +427,7 @@ export default function RozpisApp() {
             type="button"
             className="btn btn-accent anim-pulse-once flex-1 sm:flex-none"
             onClick={() => setModal({ type: "leave" })}
-            disabled={!who}
+            disabled={!who || !unlocked}
           >
             Požiadať o voľno
           </button>
@@ -318,6 +435,7 @@ export default function RozpisApp() {
             type="button"
             className="btn btn-ghost flex-1 sm:flex-none"
             onClick={() => setModal({ type: "people" })}
+            disabled={!unlocked}
           >
             Kolegovia
           </button>
