@@ -518,10 +518,10 @@ export default function RozpisApp() {
       <div className="gate-shell">
         <div className="gate-panel">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--ink-soft)]">
-            Restaurant Fitz
+            Dienstplan
           </p>
           <h1 className="brand-title mt-3 text-[clamp(3.4rem,16vw,6rem)]">
-            Dienstplan
+            FitzTeam
           </h1>
           <p className="mt-4 text-[var(--ink-soft)]">Laden…</p>
         </div>
@@ -534,10 +534,10 @@ export default function RozpisApp() {
       <div className="gate-shell">
         <div className="gate-panel">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--ink-soft)]">
-            Restaurant Fitz
+            Dienstplan
           </p>
           <h1 className="brand-title mt-3 text-[clamp(3.4rem,16vw,6rem)]">
-            Dienstplan
+            FitzTeam
           </h1>
           <p className="mt-4 max-w-sm text-base leading-relaxed text-[var(--ink-soft)]">
             Team-Zugang. Code eingeben, um den Plan zu öffnen.
@@ -588,10 +588,10 @@ export default function RozpisApp() {
       <header className="anim-rise mb-5 flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--ink-soft)]">
-            Restaurant Fitz
+            Dienstplan
           </p>
           <h1 className="brand-title text-[clamp(2.2rem,11vw,3.2rem)]">
-            Dienstplan
+            FitzTeam
           </h1>
           {state?.sampleMode ? (
             <p className="mt-2 text-sm text-[var(--gold)]">Beispieldaten (lokal)</p>

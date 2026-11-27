@@ -15,9 +15,9 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Dienstplan — Restaurant Fitz",
+  title: "FitzTeam",
   description:
-    "Gemeinsamer Schichtplan, freie Tage, Urlaub und Arbeitszeiten für Restaurant Fitz.",
+    "Dienstplan, freie Tage, Urlaub, Reservierungen und Einkauf für Restaurant Fitz.",
 };
 
 export const viewport: Viewport = {

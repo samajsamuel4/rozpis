@@ -165,7 +165,7 @@ export default function ShoppingList({
 
   function zettelText() {
     return [
-      "Einkaufsliste — Fitz",
+      "Einkaufsliste — FitzTeam",
       ...selected.map((item) => `• ${item.label}`),
     ].join("\n");
   }
