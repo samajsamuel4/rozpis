@@ -221,6 +221,36 @@ a {
   color: var(--ink);
 }
 
+.btn-reserve {
+  background: var(--reserve);
+  color: #1a1408;
+}
+
+.btn-reserve:hover {
+  background: #e0b020;
+  color: #1a1408;
+}
+
+.btn-leave {
+  background: var(--free-day);
+  color: #2a1010;
+}
+
+.btn-leave:hover {
+  background: #ea9090;
+  color: #2a1010;
+}
+
+.btn-team {
+  background: #3d6e8c;
+  color: #f4efe6;
+}
+
+.btn-team:hover {
+  background: #4f87a8;
+  color: #f4efe6;
+}
+
 .field {
   width: 100%;
   border: 1px solid var(--line);

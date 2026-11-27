@@ -640,14 +640,14 @@ export default function RozpisApp() {
           </button>
           <button
             type="button"
-            className="btn btn-primary px-2 text-sm"
+            className="btn btn-reserve px-2 text-sm"
             onClick={() => setModal({ type: "reservation" })}
           >
-            Res.
+            Reservierung
           </button>
           <button
             type="button"
-            className="btn btn-ghost px-2 text-sm"
+            className="btn btn-leave px-2 text-sm"
             onClick={() => setModal({ type: "leave" })}
             disabled={!who}
           >
@@ -655,7 +655,7 @@ export default function RozpisApp() {
           </button>
           <button
             type="button"
-            className="btn btn-ghost px-2 text-sm"
+            className="btn btn-team px-2 text-sm"
             onClick={() => setModal({ type: "people" })}
           >
             Team
