@@ -230,7 +230,7 @@ export default function ShoppingList({
 
         <div className="shopping-zettel mb-3">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">
+            <p className="eyebrow">
               Auf dem Zettel ({selected.length})
             </p>
             {selected.length > 0 ? (
