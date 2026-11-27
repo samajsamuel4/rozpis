@@ -1,85 +1,132 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { sql } from "@/lib/db";
 
 /** Shared team EDIT_CODE minimum length. */
 export const MIN_CODE_LENGTH = 8;
 /** Bumped so security review re-scans a fresh tree. */
-export const ACCESS_BUILD = "2026-11-27-r8b-sharp-bg";
+export const ACCESS_BUILD = "2026-11-28-r9-db-rate";
+
 const FAIL_WINDOW_MS = 15 * 60 * 1000;
 const FAIL_MAX = 5;
 const LOCK_MS = 15 * 60 * 1000;
 const MUTATE_WINDOW_MS = 60 * 1000;
 const MUTATE_MAX = 40;
 
-type FailBucket = { fails: number[]; lockedUntil: number };
-type MutateBucket = { hits: number[] };
+const AUTH_BUCKET = "team-auth";
+const MUTATE_BUCKET = "team-mutate";
 
-type GlobalRate = typeof globalThis & {
-  __dienstplanAuthFails?: Map<string, FailBucket>;
-  __dienstplanMutateHits?: Map<string, MutateBucket>;
+type RateRow = {
+  bucket: string;
+  fail_count: number;
+  window_start_ms: number | string;
+  locked_until_ms: number | string;
+  mutate_count: number;
+  mutate_window_start_ms: number | string;
 };
 
-function failMap(): Map<string, FailBucket> {
-  const g = globalThis as GlobalRate;
-  g.__dienstplanAuthFails ??= new Map();
-  return g.__dienstplanAuthFails;
+function num(value: number | string | undefined): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value !== "") return Number(value);
+  return 0;
 }
 
-function mutateMap(): Map<string, MutateBucket> {
-  const g = globalThis as GlobalRate;
-  g.__dienstplanMutateHits ??= new Map();
-  return g.__dienstplanMutateHits;
+/**
+ * Rate limits live in Postgres (not spoofable client IPs).
+ * Buckets are shared across instances; they are process-global only when
+ * DATABASE_URL is unset (local PGlite), which is sample/dev mode.
+ */
+async function ensureBucket(bucket: string): Promise<void> {
+  await sql(
+    `insert into rate_limits (bucket) values ($1)
+     on conflict (bucket) do nothing`,
+    [bucket],
+  );
 }
 
-function clientKey(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+async function loadBucket(bucket: string): Promise<RateRow> {
+  await ensureBucket(bucket);
+  const rows = await sql<RateRow>(
+    `select bucket, fail_count, window_start_ms, locked_until_ms,
+            mutate_count, mutate_window_start_ms
+     from rate_limits where bucket = $1`,
+    [bucket],
+  );
+  return rows[0]!;
+}
+
+async function lockedUntilMs(bucket: string, now: number): Promise<number | null> {
+  const row = await loadBucket(bucket);
+  const until = num(row.locked_until_ms);
+  return until > now ? until : null;
+}
+
+async function recordAuthFailure(now: number): Promise<number | null> {
+  await ensureBucket(AUTH_BUCKET);
+  const row = await loadBucket(AUTH_BUCKET);
+  let failCount = num(row.fail_count);
+  let windowStart = num(row.window_start_ms);
+  let lockedUntil = num(row.locked_until_ms);
+
+  if (lockedUntil > now) return lockedUntil;
+
+  if (windowStart === 0 || now - windowStart > FAIL_WINDOW_MS) {
+    failCount = 0;
+    windowStart = now;
   }
-  const real = request.headers.get("x-real-ip")?.trim();
-  if (real) return real;
-  return "unknown";
-}
-
-function pruneOlder(times: number[], windowMs: number, now: number): number[] {
-  return times.filter((t) => now - t < windowMs);
-}
-
-function isLockedOut(key: string, now: number): number | null {
-  const bucket = failMap().get(key);
-  if (!bucket) return null;
-  if (bucket.lockedUntil > now) return bucket.lockedUntil;
-  return null;
-}
-
-function recordAuthFailure(key: string, now: number): number | null {
-  const map = failMap();
-  const bucket = map.get(key) ?? { fails: [], lockedUntil: 0 };
-  bucket.fails = pruneOlder(bucket.fails, FAIL_WINDOW_MS, now);
-  bucket.fails.push(now);
-  if (bucket.fails.length >= FAIL_MAX) {
-    bucket.lockedUntil = now + LOCK_MS;
-    bucket.fails = [];
+  failCount += 1;
+  if (failCount >= FAIL_MAX) {
+    lockedUntil = now + LOCK_MS;
+    failCount = 0;
+    windowStart = now;
   }
-  map.set(key, bucket);
-  return bucket.lockedUntil > now ? bucket.lockedUntil : null;
+
+  await sql(
+    `update rate_limits
+     set fail_count = $2,
+         window_start_ms = $3,
+         locked_until_ms = $4,
+         updated_at = now()
+     where bucket = $1`,
+    [AUTH_BUCKET, failCount, windowStart, lockedUntil],
+  );
+  return lockedUntil > now ? lockedUntil : null;
 }
 
-function clearAuthFailures(key: string): void {
-  failMap().delete(key);
+async function clearAuthFailures(): Promise<void> {
+  await sql(
+    `update rate_limits
+     set fail_count = 0,
+         window_start_ms = 0,
+         locked_until_ms = 0,
+         updated_at = now()
+     where bucket = $1`,
+    [AUTH_BUCKET],
+  );
 }
 
-function recordMutation(key: string, now: number): boolean {
-  const map = mutateMap();
-  const bucket = map.get(key) ?? { hits: [] };
-  bucket.hits = pruneOlder(bucket.hits, MUTATE_WINDOW_MS, now);
-  if (bucket.hits.length >= MUTATE_MAX) {
-    map.set(key, bucket);
+async function recordMutation(now: number): Promise<boolean> {
+  await ensureBucket(MUTATE_BUCKET);
+  const row = await loadBucket(MUTATE_BUCKET);
+  let mutateCount = num(row.mutate_count);
+  let mutateWindow = num(row.mutate_window_start_ms);
+
+  if (mutateWindow === 0 || now - mutateWindow > MUTATE_WINDOW_MS) {
+    mutateCount = 0;
+    mutateWindow = now;
+  }
+  if (mutateCount >= MUTATE_MAX) {
     return false;
   }
-  bucket.hits.push(now);
-  map.set(key, bucket);
+  mutateCount += 1;
+  await sql(
+    `update rate_limits
+     set mutate_count = $2,
+         mutate_window_start_ms = $3,
+         updated_at = now()
+     where bucket = $1`,
+    [MUTATE_BUCKET, mutateCount, mutateWindow],
+  );
   return true;
 }
 
@@ -111,16 +158,35 @@ function requestHosts(request: NextRequest): Set<string> {
   return hosts;
 }
 
+function lockedResponse(lockedUntil: number, now: number): NextResponse {
+  const retryAfter = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
+  return NextResponse.json(
+    {
+      error: "Zu viele falsche Codes. Bitte später erneut versuchen.",
+    },
+    {
+      status: 429,
+      headers: { "Retry-After": String(retryAfter) },
+    },
+  );
+}
+
 /**
  * CSRF defense for mutations.
- * Writes already require a custom X-Edit-Code header (not sent by plain forms).
- * Behind Cursor Apps the edge Host often differs from the browser Origin, so we
- * trust Sec-Fetch-Site and Origin/X-Forwarded-Host instead of raw Host alone.
+ * Rejects when both Sec-Fetch-Site and Origin are absent.
+ * Writes also require custom X-Edit-Code (not sent by plain HTML forms).
  */
-export function assertSameOrigin(
-  request: NextRequest,
-): NextResponse | null {
+export function assertSameOrigin(request: NextRequest): NextResponse | null {
   const site = request.headers.get("sec-fetch-site");
+  const origin = request.headers.get("origin");
+
+  if (!site && !origin) {
+    return NextResponse.json(
+      { error: "Anfrage-Ursprung fehlt" },
+      { status: 403 },
+    );
+  }
+
   if (site === "cross-site") {
     return NextResponse.json(
       { error: "Cross-Site-Anfrage verboten" },
@@ -131,9 +197,11 @@ export function assertSameOrigin(
     return null;
   }
 
-  const origin = request.headers.get("origin");
   if (!origin) {
-    return null;
+    return NextResponse.json(
+      { error: "Anfrage-Ursprung verboten" },
+      { status: 403 },
+    );
   }
 
   try {
@@ -153,35 +221,23 @@ export function assertSameOrigin(
     );
   }
 
-  return null;
+  return NextResponse.json(
+    { error: "Anfrage-Ursprung verboten" },
+    { status: 403 },
+  );
 }
 
 /**
  * Require valid EDIT_CODE for schedule reads.
- * The UI gate is not enough alone — APIs must reject anonymous callers.
- * Wrong guesses share the same lockout bucket as writes; missing header is 401
- * without counting a failure.
+ * Failed guesses use a Postgres-backed shared bucket (not client IP).
  */
-export function assertCanAccess(
+export async function assertCanAccess(
   request: NextRequest,
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const now = Date.now();
-  const key = clientKey(request);
 
-  const lockedUntil = isLockedOut(key, now);
-  if (lockedUntil) {
-    const retryAfter = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
-    return NextResponse.json(
-      {
-        error:
-          "Zu viele falsche Codes. Bitte später erneut versuchen.",
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfter) },
-      },
-    );
-  }
+  const lockedUntil = await lockedUntilMs(AUTH_BUCKET, now);
+  if (lockedUntil) return lockedResponse(lockedUntil, now);
 
   const expected = configuredEditCode();
   if (!expected) {
@@ -205,20 +261,8 @@ export function assertCanAccess(
   const provided = request.headers.get("x-edit-code")?.trim() ?? "";
   if (!provided || !codesMatch(provided, expected)) {
     if (provided) {
-      const until = recordAuthFailure(key, now);
-      if (until) {
-        const retryAfter = Math.max(1, Math.ceil((until - now) / 1000));
-        return NextResponse.json(
-          {
-            error:
-              "Zu viele falsche Codes. Bitte später erneut versuchen.",
-          },
-          {
-            status: 429,
-            headers: { "Retry-After": String(retryAfter) },
-          },
-        );
-      }
+      const until = await recordAuthFailure(now);
+      if (until) return lockedResponse(until, now);
     }
     return NextResponse.json(
       {
@@ -228,47 +272,24 @@ export function assertCanAccess(
     );
   }
 
-  clearAuthFailures(key);
+  await clearAuthFailures();
   return null;
 }
 
 /**
  * Require host-provided EDIT_CODE on write routes.
- * Shared team code by design; failed guesses are rate-limited / temporarily locked.
+ * CSRF + Postgres-backed mutation throttle (shared across instances).
  */
-export function assertCanMutate(
+export async function assertCanMutate(
   request: NextRequest,
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const originBlock = assertSameOrigin(request);
   if (originBlock) return originBlock;
 
   const now = Date.now();
-  const key = clientKey(request);
 
-  const lockedUntil = isLockedOut(key, now);
-  if (lockedUntil) {
-    const retryAfter = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
-    return NextResponse.json(
-      {
-        error:
-          "Zu viele falsche Codes. Bitte später erneut versuchen.",
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfter) },
-      },
-    );
-  }
-
-  if (!recordMutation(key, now)) {
-    return NextResponse.json(
-      { error: "Zu viele Änderungen. Bitte kurz warten." },
-      {
-        status: 429,
-        headers: { "Retry-After": "60" },
-      },
-    );
-  }
+  const lockedUntil = await lockedUntilMs(AUTH_BUCKET, now);
+  if (lockedUntil) return lockedResponse(lockedUntil, now);
 
   const expected = configuredEditCode();
   if (!expected) {
@@ -292,29 +313,27 @@ export function assertCanMutate(
   const provided = request.headers.get("x-edit-code")?.trim() ?? "";
 
   if (!provided || !codesMatch(provided, expected)) {
-    const until = recordAuthFailure(key, now);
-    if (until) {
-      const retryAfter = Math.max(1, Math.ceil((until - now) / 1000));
-      return NextResponse.json(
-        {
-          error:
-            "Zu viele falsche Codes. Bitte später erneut versuchen.",
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(retryAfter) },
-        },
-      );
-    }
+    const until = await recordAuthFailure(now);
+    if (until) return lockedResponse(until, now);
     return NextResponse.json(
       {
-        error:
-          "Für Änderungen Team-Code senden (Header X-Edit-Code).",
+        error: "Für Änderungen Team-Code senden (Header X-Edit-Code).",
       },
       { status: 401 },
     );
   }
 
-  clearAuthFailures(key);
+  await clearAuthFailures();
+
+  if (!(await recordMutation(now))) {
+    return NextResponse.json(
+      { error: "Zu viele Änderungen. Bitte kurz warten." },
+      {
+        status: 429,
+        headers: { "Retry-After": "60" },
+      },
+    );
+  }
+
   return null;
 }

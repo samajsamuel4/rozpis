@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * public/redacted payload path in this route.
  */
 export async function GET(request: NextRequest) {
-  const denied = assertCanAccess(request);
+  const denied = await assertCanAccess(request);
   if (denied) return denied;
 
   const now = new Date();

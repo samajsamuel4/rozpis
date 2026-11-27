@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const TIME_RE = /^\d{2}:\d{2}$/;
 
 export async function POST(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const body = (await request.json()) as {
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const body = (await request.json()) as {
@@ -118,7 +118,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const id = Number(request.nextUrl.searchParams.get("id"));

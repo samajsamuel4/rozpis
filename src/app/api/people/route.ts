@@ -25,7 +25,7 @@ function normalizeTime(value: string | undefined, fallback: string): string {
 
 /** Roster read requires the same team EDIT_CODE as the entry gate. */
 export async function GET(request: NextRequest) {
-  const denied = assertCanAccess(request);
+  const denied = await assertCanAccess(request);
   if (denied) return denied;
 
   const people = await sql<Person>(
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const body = (await request.json()) as {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const body = (await request.json()) as {
@@ -106,7 +106,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const denied = assertCanMutate(request);
+  const denied = await assertCanMutate(request);
   if (denied) return denied;
 
   const id = Number(request.nextUrl.searchParams.get("id"));
