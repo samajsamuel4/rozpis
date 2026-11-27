@@ -1,6 +1,85 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
+const MIN_CODE_LENGTH = 8;
+const FAIL_WINDOW_MS = 15 * 60 * 1000;
+const FAIL_MAX = 5;
+const LOCK_MS = 15 * 60 * 1000;
+const MUTATE_WINDOW_MS = 60 * 1000;
+const MUTATE_MAX = 40;
+
+type FailBucket = { fails: number[]; lockedUntil: number };
+type MutateBucket = { hits: number[] };
+
+type GlobalRate = typeof globalThis & {
+  __dienstplanAuthFails?: Map<string, FailBucket>;
+  __dienstplanMutateHits?: Map<string, MutateBucket>;
+};
+
+function failMap(): Map<string, FailBucket> {
+  const g = globalThis as GlobalRate;
+  g.__dienstplanAuthFails ??= new Map();
+  return g.__dienstplanAuthFails;
+}
+
+function mutateMap(): Map<string, MutateBucket> {
+  const g = globalThis as GlobalRate;
+  g.__dienstplanMutateHits ??= new Map();
+  return g.__dienstplanMutateHits;
+}
+
+function clientKey(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const real = request.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  return "unknown";
+}
+
+function pruneOlder(times: number[], windowMs: number, now: number): number[] {
+  return times.filter((t) => now - t < windowMs);
+}
+
+function isLockedOut(key: string, now: number): number | null {
+  const bucket = failMap().get(key);
+  if (!bucket) return null;
+  if (bucket.lockedUntil > now) return bucket.lockedUntil;
+  return null;
+}
+
+function recordAuthFailure(key: string, now: number): number | null {
+  const map = failMap();
+  const bucket = map.get(key) ?? { fails: [], lockedUntil: 0 };
+  bucket.fails = pruneOlder(bucket.fails, FAIL_WINDOW_MS, now);
+  bucket.fails.push(now);
+  if (bucket.fails.length >= FAIL_MAX) {
+    bucket.lockedUntil = now + LOCK_MS;
+    bucket.fails = [];
+  }
+  map.set(key, bucket);
+  return bucket.lockedUntil > now ? bucket.lockedUntil : null;
+}
+
+function clearAuthFailures(key: string): void {
+  failMap().delete(key);
+}
+
+function recordMutation(key: string, now: number): boolean {
+  const map = mutateMap();
+  const bucket = map.get(key) ?? { hits: [] };
+  bucket.hits = pruneOlder(bucket.hits, MUTATE_WINDOW_MS, now);
+  if (bucket.hits.length >= MUTATE_MAX) {
+    map.set(key, bucket);
+    return false;
+  }
+  bucket.hits.push(now);
+  map.set(key, bucket);
+  return true;
+}
+
 function configuredEditCode(): string | null {
   const fromEnv = process.env.EDIT_CODE?.trim() ?? "";
   return fromEnv !== "" ? fromEnv : null;
@@ -51,7 +130,6 @@ export function assertSameOrigin(
 
   const origin = request.headers.get("origin");
   if (!origin) {
-    // Non-browser clients (or older browsers): still gated by EDIT_CODE.
     return null;
   }
 
@@ -72,17 +150,46 @@ export function assertSameOrigin(
     );
   }
 
-  // Host headers are often the internal proxy name on Cursor Apps; Origin is
-  // the public app URL. Custom X-Edit-Code still required below.
   return null;
 }
 
-/** Require host-provided EDIT_CODE on write routes. No hardcoded fallback. */
+/**
+ * Require host-provided EDIT_CODE on write routes.
+ * Shared team code by design; failed guesses are rate-limited / temporarily locked.
+ */
 export function assertCanMutate(
   request: NextRequest,
 ): NextResponse | null {
   const originBlock = assertSameOrigin(request);
   if (originBlock) return originBlock;
+
+  const now = Date.now();
+  const key = clientKey(request);
+
+  const lockedUntil = isLockedOut(key, now);
+  if (lockedUntil) {
+    const retryAfter = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
+    return NextResponse.json(
+      {
+        error:
+          "Zu viele falsche Codes. Bitte später erneut versuchen.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      },
+    );
+  }
+
+  if (!recordMutation(key, now)) {
+    return NextResponse.json(
+      { error: "Zu viele Änderungen. Bitte kurz warten." },
+      {
+        status: 429,
+        headers: { "Retry-After": "60" },
+      },
+    );
+  }
 
   const expected = configuredEditCode();
   if (!expected) {
@@ -94,10 +201,32 @@ export function assertCanMutate(
       { status: 503 },
     );
   }
+  if (expected.length < MIN_CODE_LENGTH) {
+    return NextResponse.json(
+      {
+        error: `EDIT_CODE muss mindestens ${MIN_CODE_LENGTH} Zeichen haben.`,
+      },
+      { status: 503 },
+    );
+  }
 
   const provided = request.headers.get("x-edit-code")?.trim() ?? "";
 
   if (!provided || !codesMatch(provided, expected)) {
+    const until = recordAuthFailure(key, now);
+    if (until) {
+      const retryAfter = Math.max(1, Math.ceil((until - now) / 1000));
+      return NextResponse.json(
+        {
+          error:
+            "Zu viele falsche Codes. Bitte später erneut versuchen.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(retryAfter) },
+        },
+      );
+    }
     return NextResponse.json(
       {
         error:
@@ -106,5 +235,7 @@ export function assertCanMutate(
       { status: 401 },
     );
   }
+
+  clearAuthFailures(key);
   return null;
 }
