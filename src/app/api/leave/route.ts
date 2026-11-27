@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertCanMutate } from "@/lib/access";
 import { sql } from "@/lib/db";
-import type { LeaveRequest } from "@/lib/types";
+import type { LeaveRequest, LeaveType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+const LEAVE_TYPES: LeaveType[] = ["free_day", "vacation"];
 
 export async function POST(request: NextRequest) {
   const denied = assertCanMutate(request);
@@ -14,6 +16,7 @@ export async function POST(request: NextRequest) {
     start_date?: string;
     end_date?: string;
     note?: string;
+    leave_type?: string;
   };
   if (!body.person_id || !body.start_date || !body.end_date) {
     return NextResponse.json(
@@ -27,12 +30,26 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+  const leaveType = (body.leave_type ?? "free_day") as LeaveType;
+  if (!LEAVE_TYPES.includes(leaveType)) {
+    return NextResponse.json(
+      { error: "Ungültiger Abwesenheitstyp" },
+      { status: 400 },
+    );
+  }
   const rows = await sql<LeaveRequest>(
-    `insert into leave_requests (person_id, start_date, end_date, note, status)
-     values ($1, $2::date, $3::date, $4, 'pending')
+    `insert into leave_requests (person_id, start_date, end_date, note, status, leave_type)
+     values ($1, $2::date, $3::date, $4, 'pending', $5)
      returning id, person_id, start_date::text as start_date,
-               end_date::text as end_date, note, status, created_at::text`,
-    [body.person_id, body.start_date, body.end_date, body.note?.trim() ?? ""],
+               end_date::text as end_date, note, status, leave_type,
+               created_at::text`,
+    [
+      body.person_id,
+      body.start_date,
+      body.end_date,
+      body.note?.trim() ?? "",
+      leaveType,
+    ],
   );
   return NextResponse.json(rows[0], { status: 201 });
 }
@@ -55,7 +72,9 @@ export async function PATCH(request: NextRequest) {
     `update leave_requests set status = $2
      where id = $1
      returning id, person_id, start_date::text as start_date,
-               end_date::text as end_date, note, status, created_at::text`,
+               end_date::text as end_date, note, status,
+               coalesce(leave_type, 'free_day') as leave_type,
+               created_at::text`,
     [body.id, body.status],
   );
   if (!rows[0]) {

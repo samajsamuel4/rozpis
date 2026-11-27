@@ -86,13 +86,13 @@ async function seedSample(db: PGlite): Promise<void> {
   }
 
   await db.query(
-    `insert into leave_requests (person_id, start_date, end_date, note, status)
-     values ($1, $2, $3, $4, 'pending')`,
-    [byName.Mária, iso(18), iso(20), "Rodinná záležitosť"],
+    `insert into leave_requests (person_id, start_date, end_date, note, status, leave_type)
+     values ($1, $2, $3, $4, 'pending', 'vacation')`,
+    [byName.Mária, iso(18), iso(20), "Familienangelegenheit"],
   );
   await db.query(
-    `insert into leave_requests (person_id, start_date, end_date, note, status)
-     values ($1, $2, $3, $4, 'approved')`,
-    [byName.Peter, iso(25), iso(26), "Voľno"],
+    `insert into leave_requests (person_id, start_date, end_date, note, status, leave_type)
+     values ($1, $2, $3, $4, 'approved', 'free_day')`,
+    [byName.Peter, iso(25), iso(26), "Frei"],
   );
 }

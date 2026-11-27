@@ -11,7 +11,13 @@
   --gold-deep: #c9a05a;
   --teal: #2fbfb0;
   --teal-deep: #1a8f84;
-  --leave: #e8a0a0;
+  --work: #2f9e6a;
+  --work-deep: #1d7a4f;
+  --free-day: #e07a7a;
+  --free-day-soft: rgba(224, 122, 122, 0.22);
+  --vacation: #c62828;
+  --vacation-soft: rgba(198, 40, 40, 0.28);
+  --leave: #e07a7a;
   --danger: #c45c5c;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   --radius: 16px;

@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
   const { start, end } = monthBounds(year, month);
 
   const people = await sql<Person>(
-    "select id, name, color, created_at::text from people order by name",
+    `select id, name, color, work_start, work_end, created_at::text
+     from people order by name`,
   );
 
   const shifts = await sql<Shift>(
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
   const leave = await sql<LeaveRequest>(
     `select l.id, l.person_id, l.start_date::text as start_date,
             l.end_date::text as end_date, l.note, l.status,
+            coalesce(l.leave_type, 'free_day') as leave_type,
             l.created_at::text as created_at,
             p.name as person_name, p.color as person_color
      from leave_requests l
