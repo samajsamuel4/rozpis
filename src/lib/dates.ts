@@ -71,6 +71,11 @@ export function calendarCells(
 }
 
 export function formatShortRange(start: string, end: string): string {
-  if (start === end) return start;
-  return `${start} – ${end}`;
+  if (start === end) return formatDaySk(start);
+  return `${formatDaySk(start)} – ${formatDaySk(end)}`;
+}
+
+export function formatDaySk(iso: string): string {
+  const [y, m, d] = asDay(iso).split("-");
+  return `${Number(d)}.${Number(m)}.${y}`;
 }

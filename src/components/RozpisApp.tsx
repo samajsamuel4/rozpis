@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   asDay,
   calendarCells,
+  formatDaySk,
   formatShortRange,
   monthTitle,
   toISODate,
@@ -407,7 +408,7 @@ export default function RozpisApp() {
                   {cell.day}
                 </span>
                 <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
-                  {dayShifts.slice(0, 3).map((s) => (
+                  {dayShifts.slice(0, 2).map((s) => (
                     <span
                       key={s.id}
                       className="chip text-[0.62rem] text-white sm:text-[0.72rem]"
@@ -418,22 +419,30 @@ export default function RozpisApp() {
                         {s.person_name?.split(" ")[0]} {s.start_time}
                       </span>
                       <span className="sm:hidden">
-                        {(s.person_name ?? "?").slice(0, 1)}
+                        {(s.person_name ?? "?").slice(0, 2)}
                       </span>
                     </span>
                   ))}
-                  {dayLeave.slice(0, 2).map((l) => (
+                  {dayLeave.slice(0, 1).map((l) => (
                     <span
                       key={`l-${l.id}`}
-                      className="chip bg-[color-mix(in_srgb,var(--leave)_18%,white)] text-[0.62rem] text-[var(--leave)] sm:text-[0.7rem]"
+                      className="chip text-[0.62rem] text-[var(--leave)] sm:text-[0.7rem]"
+                      style={{
+                        background: "color-mix(in srgb, var(--leave) 16%, white)",
+                      }}
                       title={`${l.person_name}: voľno (${STATUS_SK[l.status]})`}
                     >
-                      {l.person_name?.slice(0, 1)} voľno
+                      <span className="hidden sm:inline">
+                        {l.person_name?.split(" ")[0]} voľno
+                      </span>
+                      <span className="sm:hidden">
+                        {(l.person_name ?? "?").slice(0, 1)}+V
+                      </span>
                     </span>
                   ))}
-                  {dayShifts.length + dayLeave.length > 4 ? (
-                    <span className="text-[0.65rem] text-[var(--ink-soft)]">
-                      +{dayShifts.length + dayLeave.length - 4}
+                  {dayShifts.length + dayLeave.length > 3 ? (
+                    <span className="text-[0.65rem] font-semibold text-[var(--ink-soft)]">
+                      +{dayShifts.length + dayLeave.length - 3}
                     </span>
                   ) : null}
                 </div>
@@ -599,7 +608,7 @@ function DayModal({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h3 id="day-title" className="brand-title text-2xl text-[var(--spruce)]">
-              Deň {date}
+              Deň {formatDaySk(date)}
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
               Nastavte alebo upravte pracovnú zmenu.

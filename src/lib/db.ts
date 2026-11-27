@@ -4,7 +4,10 @@ import pg from "pg";
 
 const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
 let pool: pg.Pool | undefined;
-let local: Promise<PGlite> | undefined;
+
+type GlobalDb = typeof globalThis & {
+  __rozpisPglite?: Promise<PGlite>;
+};
 
 export function isSampleMode(): boolean {
   return databaseUrl === "";
@@ -18,11 +21,12 @@ export async function sql<T = Record<string, unknown>>(
     pool ??= new pg.Pool({ connectionString: databaseUrl, max: 5 });
     return (await pool.query(text, params)).rows as T[];
   }
-  local ??= startLocal().catch((error: unknown) => {
-    local = undefined;
+  const g = globalThis as GlobalDb;
+  g.__rozpisPglite ??= startLocal().catch((error: unknown) => {
+    g.__rozpisPglite = undefined;
     throw error;
   });
-  return (await (await local).query<T>(text, params)).rows;
+  return (await (await g.__rozpisPglite).query<T>(text, params)).rows;
 }
 
 async function startLocal(): Promise<PGlite> {
@@ -84,12 +88,7 @@ async function seedSample(db: PGlite): Promise<void> {
   await db.query(
     `insert into leave_requests (person_id, start_date, end_date, note, status)
      values ($1, $2, $3, $4, 'pending')`,
-    [
-      byName.Mária,
-      iso(18),
-      iso(20),
-      "Rodinná záležitosť",
-    ],
+    [byName.Mária, iso(18), iso(20), "Rodinná záležitosť"],
   );
   await db.query(
     `insert into leave_requests (person_id, start_date, end_date, note, status)
