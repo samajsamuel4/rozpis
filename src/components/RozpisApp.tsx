@@ -34,6 +34,7 @@ type Modal =
   | { type: "leave" }
   | { type: "people" }
   | { type: "reservation"; date?: string }
+  | { type: "shopping" }
   | null;
 
 const STATUS_AT: Record<LeaveRequest["status"], string> = {
@@ -629,7 +630,14 @@ export default function RozpisApp() {
           </select>
         </label>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="btn btn-accent px-2 text-sm"
+            onClick={() => setModal({ type: "shopping" })}
+          >
+            Einkauf
+          </button>
           <button
             type="button"
             className="btn btn-primary px-2 text-sm"
@@ -639,7 +647,7 @@ export default function RozpisApp() {
           </button>
           <button
             type="button"
-            className="btn btn-accent px-2 text-sm"
+            className="btn btn-ghost px-2 text-sm"
             onClick={() => setModal({ type: "leave" })}
             disabled={!who}
           >
@@ -654,8 +662,6 @@ export default function RozpisApp() {
           </button>
         </div>
       </section>
-
-      <ShoppingList editCode={editCode} onError={setError} />
 
       {!loading && (state?.people.length ?? 0) === 0 ? (
         <div className="mb-4 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--ink-soft)]">
@@ -1017,6 +1023,13 @@ export default function RozpisApp() {
           onSubmit={saveReservation}
         />
       ) : null}
+
+      <ShoppingList
+        open={modal?.type === "shopping"}
+        editCode={editCode}
+        onClose={() => setModal(null)}
+        onError={setError}
+      />
     </div>
   );
 }
