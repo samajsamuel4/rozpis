@@ -154,6 +154,19 @@ export function assertSameOrigin(
 }
 
 /**
+ * Silent check for sensitive reads (guest names / notes).
+ * Invalid or missing codes return false without recording a failure — public
+ * callers just get redacted data; brute-force lockouts stay on writes.
+ */
+export function hasValidEditCode(request: NextRequest): boolean {
+  const expected = configuredEditCode();
+  if (!expected || expected.length < MIN_CODE_LENGTH) return false;
+  const provided = request.headers.get("x-edit-code")?.trim() ?? "";
+  if (!provided) return false;
+  return codesMatch(provided, expected);
+}
+
+/**
  * Require host-provided EDIT_CODE on write routes.
  * Shared team code by design; failed guesses are rate-limited / temporarily locked.
  */

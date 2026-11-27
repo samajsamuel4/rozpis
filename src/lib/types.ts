@@ -51,6 +51,8 @@ export type AppState = {
   reservations: Reservation[];
   year: number;
   month: number;
+  /** True when response includes guest names/notes (valid X-Edit-Code). */
+  detailsUnlocked?: boolean;
 };
 
 export const LEAVE_TYPE_AT: Record<LeaveType, string> = {

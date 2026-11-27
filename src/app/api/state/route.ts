@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hasValidEditCode } from "@/lib/access";
 import { monthBounds } from "@/lib/dates";
 import { isSampleMode, sql } from "@/lib/db";
 import type { LeaveRequest, Person, Reservation, Shift } from "@/lib/types";
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("month") ?? now.getMonth(),
   );
   const { start, end } = monthBounds(year, month);
+  const unlocked = hasValidEditCode(request);
 
   const people = await sql<Person>(
     `select id, name, color, work_start, work_end, created_at::text
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest) {
     [start, end],
   );
 
-  const leave = await sql<LeaveRequest>(
+  const leaveRaw = await sql<LeaveRequest>(
     `select l.id, l.person_id, l.start_date::text as start_date,
             l.end_date::text as end_date, l.note, l.status,
             coalesce(l.leave_type, 'free_day') as leave_type,
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
     [start, end],
   );
 
-  const reservations = await sql<Reservation>(
+  const reservationsRaw = await sql<Reservation>(
     `select id, reservation_date::text as reservation_date,
             reservation_time, guest_count, guest_name, note,
             created_at::text
@@ -56,6 +58,19 @@ export async function GET(request: NextRequest) {
     [start, end],
   );
 
+  // Public: keep calendar totals (count/time/date). Hide guest PII + leave notes.
+  const leave = unlocked
+    ? leaveRaw
+    : leaveRaw.map((l) => ({ ...l, note: "" }));
+
+  const reservations = unlocked
+    ? reservationsRaw
+    : reservationsRaw.map((r) => ({
+        ...r,
+        guest_name: "",
+        note: "",
+      }));
+
   return NextResponse.json({
     sampleMode: isSampleMode(),
     people,
@@ -64,5 +79,6 @@ export async function GET(request: NextRequest) {
     reservations,
     year,
     month,
+    detailsUnlocked: unlocked,
   });
 }
