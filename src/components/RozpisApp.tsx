@@ -580,7 +580,7 @@ export default function RozpisApp() {
   }
 
   return (
-    <div className="app-shell mx-auto min-h-screen w-full px-3.5 pt-5">
+    <div className="app-shell mx-auto min-h-screen w-full px-3.5 pb-10 pt-5">
       <header className="anim-rise mb-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -602,27 +602,36 @@ export default function RozpisApp() {
         ) : null}
       </header>
 
-      <section className="control-strip anim-rise mb-4">
-        <label className="flex w-full flex-col gap-1.5">
-          <span className="eyebrow">Wer bin ich</span>
-          <select
-            className="field"
-            value={whoId ?? ""}
-            onChange={(e) => pickWho(Number(e.target.value))}
-            aria-label="Person auswählen"
-            disabled={!state?.people.length}
-          >
-            {(state?.people ?? []).length === 0 ? (
-              <option value="">Zuerst Kollegen anlegen</option>
-            ) : (
-              (state?.people ?? []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
+      <section className="action-grid anim-rise mb-4">
+        <button
+          type="button"
+          className="btn btn-accent"
+          onClick={() => setModal({ type: "shopping" })}
+        >
+          Einkauf
+        </button>
+        <button
+          type="button"
+          className="btn btn-reserve"
+          onClick={() => setModal({ type: "reservation" })}
+        >
+          Reservierung
+        </button>
+        <button
+          type="button"
+          className="btn btn-leave"
+          onClick={() => setModal({ type: "leave" })}
+          disabled={(state?.people.length ?? 0) === 0}
+        >
+          Frei
+        </button>
+        <button
+          type="button"
+          className="btn btn-team"
+          onClick={() => setModal({ type: "people" })}
+        >
+          Team
+        </button>
       </section>
 
       {!loading && (state?.people.length ?? 0) === 0 ? (
@@ -967,38 +976,6 @@ export default function RozpisApp() {
         </ul>
       </section>
 
-      <nav className="dock" aria-label="Schnellaktionen">
-        <button
-          type="button"
-          className="btn btn-accent"
-          onClick={() => setModal({ type: "shopping" })}
-        >
-          Einkauf
-        </button>
-        <button
-          type="button"
-          className="btn btn-reserve"
-          onClick={() => setModal({ type: "reservation" })}
-        >
-          Res.
-        </button>
-        <button
-          type="button"
-          className="btn btn-leave"
-          onClick={() => setModal({ type: "leave" })}
-          disabled={!who}
-        >
-          Frei
-        </button>
-        <button
-          type="button"
-          className="btn btn-team"
-          onClick={() => setModal({ type: "people" })}
-        >
-          Team
-        </button>
-      </nav>
-
       {modal?.type === "day" ? (
         <DayModal
           date={modal.date}
@@ -1019,7 +996,7 @@ export default function RozpisApp() {
         />
       ) : null}
 
-      {modal?.type === "leave" && who ? (
+      {modal?.type === "leave" && (state?.people.length ?? 0) > 0 ? (
         <LeaveModal
           who={who}
           people={state?.people ?? []}
@@ -1317,7 +1294,7 @@ function LeaveModal({
   onClose,
   onSubmit,
 }: {
-  who: Person;
+  who: Person | null;
   people: Person[];
   busy: boolean;
   onClose: () => void;
@@ -1330,7 +1307,7 @@ function LeaveModal({
   }) => Promise<void>;
 }) {
   const today = toISODate(new Date());
-  const [personId, setPersonId] = useState(who.id);
+  const [personId, setPersonId] = useState(who?.id ?? people[0]?.id ?? 0);
   const [leaveType, setLeaveType] = useState<LeaveType>("free_day");
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState(today);
