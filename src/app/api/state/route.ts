@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveSensitiveRead } from "@/lib/access";
+import { ACCESS_BUILD, resolveSensitiveRead } from "@/lib/access";
 import { monthBounds } from "@/lib/dates";
 import { isSampleMode, sql } from "@/lib/db";
 import type {
@@ -71,9 +71,10 @@ export async function GET(request: NextRequest) {
       [start, end],
     );
 
-    // Intentionally omit detailsUnlocked — absence means locked (no oracle).
+    // No detailsUnlocked flag (would be a code-guess oracle). Sensitive rows omitted.
     return NextResponse.json({
       sampleMode: isSampleMode(),
+      build: ACCESS_BUILD,
       people,
       shifts,
       leave,
@@ -125,8 +126,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Unlocked: include guest/leave details. Still no detailsUnlocked boolean.
   return NextResponse.json({
     sampleMode: isSampleMode(),
+    build: ACCESS_BUILD,
     people,
     shifts,
     leave,
@@ -134,6 +137,5 @@ export async function GET(request: NextRequest) {
     reservationTotals,
     year,
     month,
-    detailsUnlocked: true,
   });
 }

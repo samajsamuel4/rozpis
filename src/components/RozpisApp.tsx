@@ -129,8 +129,8 @@ export default function RozpisApp() {
       setError("Bitte Bearbeitungscode eingeben");
       return;
     }
-    if (trimmed.length < 8) {
-      setError("Team-Code muss mindestens 8 Zeichen haben");
+    if (trimmed.length < 12) {
+      setError("Team-Code muss mindestens 12 Zeichen haben");
       return;
     }
     setEditCode(trimmed);
@@ -481,7 +481,7 @@ export default function RozpisApp() {
             </p>
             <p className="mt-2 max-w-2xl text-base text-[var(--ink-soft)] sm:text-lg">
               Dienstplan und Gästezahlen sind öffentlich. Gastnamen und Notizen
-              nur mit Team-Code (mind. 8 Zeichen).
+              nur mit Team-Code (mind. 12 Zeichen).
             </p>
           </div>
           {unlocked ? (
@@ -748,8 +748,8 @@ export default function RozpisApp() {
           </button>
         </div>
         <ul className="flex flex-col gap-3">
-          {state?.detailsUnlocked && (state.reservations?.length ?? 0) > 0 ? (
-            state.reservations.map((r) => (
+          {(state?.reservations?.length ?? 0) > 0 ? (
+            (state?.reservations ?? []).map((r) => (
               <li
                 key={r.id}
                 className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -800,7 +800,7 @@ export default function RozpisApp() {
                 <span className="text-[var(--ink-soft)]">
                   {" "}
                   · {t.count} Res. · {t.guests} Gäste
-                  {!state?.detailsUnlocked
+                  {(state?.reservations?.length ?? 0) === 0
                     ? " · Namen nach Freischaltung"
                     : ""}
                 </span>
