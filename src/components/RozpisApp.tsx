@@ -543,7 +543,7 @@ export default function RozpisApp() {
             </label>
             <input
               id="team-code"
-              className="field min-h-[56px] px-4 text-center text-2xl tracking-[0.35em]"
+              className="field gate-field min-h-[56px] px-4 text-center text-2xl tracking-[0.35em]"
               type="password"
               inputMode="text"
               autoComplete="current-password"
