@@ -20,10 +20,10 @@ export const SHOPPING_CATEGORY_AT: Record<
   ShoppingCategory,
   { title: string; short: string }
 > = {
-  fresh: { title: "Frisch", short: "Gemüse & Kräuter" },
-  seafood: { title: "Fisch", short: "Meeresfrüchte" },
-  chilled: { title: "Kühl", short: "Kühlware" },
-  pantry: { title: "Vorrat", short: "Trockenware" },
+  fresh: { title: "Frisch", short: "Gemüse, Obst & Kräuter" },
+  seafood: { title: "Fisch", short: "Fisch & Meeresfrüchte" },
+  chilled: { title: "Kühl", short: "Kühlregal" },
+  pantry: { title: "Vorrat", short: "Trockenware & Konserven" },
 };
 
 export function isShoppingCategory(value: string): value is ShoppingCategory {

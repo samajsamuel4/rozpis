@@ -310,107 +310,138 @@ a {
   border: 0;
 }
 
-.shopping-board {
-  background: rgba(6, 5, 4, 0.88);
-  border: 1px solid rgba(247, 241, 232, 0.16);
-  border-radius: 12px;
-  box-shadow:
-    var(--shadow),
-    inset 0 -1px 0 color-mix(in srgb, var(--gold) 35%, transparent);
-  backdrop-filter: blur(12px);
+.shopping-sheet-backdrop {
+  z-index: 50;
 }
 
-.shopping-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-  border: 1px solid rgba(247, 241, 232, 0.14);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.shopping-col {
+.shopping-sheet {
+  width: min(430px, 100%);
+  max-height: min(94dvh, 900px);
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  border-bottom: 1px solid rgba(247, 241, 232, 0.12);
-  background: rgba(0, 0, 0, 0.35);
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
-.shopping-col:last-child {
-  border-bottom: none;
+.shopping-zettel {
+  border: 1px solid color-mix(in srgb, var(--work) 40%, transparent);
+  background: color-mix(in srgb, var(--work) 14%, transparent);
+  border-radius: 12px;
+  padding: 0.75rem;
 }
 
-.shopping-col-head {
-  padding: 0.7rem 0.75rem 0.45rem;
-  border-bottom: 1px solid rgba(247, 241, 232, 0.1);
-}
-
-.shopping-rows {
+.shopping-zettel-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  flex: 1;
-}
-
-.shopping-row {
   display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid rgba(247, 241, 232, 0.08);
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-.shopping-label {
-  flex: 1;
-  text-align: left;
-  background: transparent;
+.shopping-zettel-chip {
   border: none;
-  color: var(--ink);
-  padding: 0.45rem 0.65rem;
-  font-size: 0.92rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  background: var(--work);
+  color: #f4fff8;
+  font-size: 0.85rem;
+  font-weight: 650;
   cursor: pointer;
 }
 
-.shopping-label:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.shopping-label.is-done {
-  color: rgba(247, 241, 232, 0.38);
-  text-decoration: line-through;
-}
-
-.shopping-del {
-  width: 2rem;
-  border: none;
-  background: transparent;
-  color: rgba(247, 241, 232, 0.35);
-  cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.shopping-del:hover {
-  color: #ffc9c9;
-  background: rgba(198, 40, 40, 0.15);
-}
-
-.shopping-add {
-  display: flex;
+.shopping-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.35rem;
-  padding: 0.55rem 0.5rem 0.65rem;
-  margin-top: auto;
-  border-top: 1px solid rgba(247, 241, 232, 0.1);
+}
+
+.shopping-tab {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink-soft);
+  min-height: 40px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.shopping-tab.is-active {
+  background: color-mix(in srgb, var(--gold) 22%, transparent);
+  border-color: color-mix(in srgb, var(--gold) 50%, transparent);
+  color: var(--gold);
+}
+
+.shopping-catalog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  flex: 1;
+  min-height: 180px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.shopping-pick {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid rgba(247, 241, 232, 0.08);
+  background: transparent;
+  color: var(--ink);
+  min-height: 48px;
+  padding: 0.7rem 0.85rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.shopping-pick:last-child {
+  border-bottom: none;
+}
+
+.shopping-pick.is-on {
+  background: color-mix(in srgb, var(--work) 28%, transparent);
+  color: #d9ffe8;
+  font-weight: 650;
+}
+
+.shopping-pick-mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  border: 1.5px solid rgba(247, 241, 232, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.shopping-pick.is-on .shopping-pick-mark {
+  background: var(--work);
+  border-color: var(--work);
+  color: #fff;
+}
+
+.shopping-composer {
+  display: flex;
+  gap: 0.4rem;
 }
 
 .shopping-add-field {
-  min-height: 38px;
-  padding: 0.4rem 0.55rem;
-  font-size: 0.85rem;
-  background: rgba(255, 255, 255, 0.05);
+  min-height: 44px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .shopping-add-btn {
-  min-height: 38px;
-  min-width: 38px;
-  padding: 0.35rem 0.55rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.35rem 0.7rem;
 }

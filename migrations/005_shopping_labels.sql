@@ -1,0 +1,27 @@
+-- Correct German labels for seeded kitchen items (best-effort rename).
+update shopping_items set label = 'Kirschtomaten' where label in ('Cherry tomaten', 'Cherry Tomaten');
+update shopping_items set label = 'Obst für Dessert' where label in ('Obst fon dezert');
+update shopping_items set label = 'Frühlingszwiebeln' where label in ('Junge cvibel', 'Junge Zwiebel');
+update shopping_items set label = 'Avocado' where label = 'Avokado';
+update shopping_items set label = 'Beeren' where label = 'Becheets';
+update shopping_items set label = 'Basilikum' where label = 'Basalikum';
+update shopping_items set label = 'Minze' where label = 'mince';
+update shopping_items set label = 'Salbei' where label = 'Salvei';
+update shopping_items set label = 'Jakobsmuscheln' where label = 'Jacobs muscles';
+update shopping_items set label = 'Black Tiger Garnelen' where label in ('Black tigers', 'Black Tiger');
+update shopping_items set label = 'Oktopus' where label = 'Octopus';
+update shopping_items set label = 'Thunfisch' where label = 'Tuna' and category = 'seafood';
+update shopping_items set label = 'Miesmuscheln' where label = 'Cozze';
+update shopping_items set label = 'Crème fraîche' where label = 'Creme fresh';
+update shopping_items set label = 'Eier' where label = 'Eiern';
+update shopping_items set label = 'Quark' where label = 'Qimik';
+update shopping_items set label = 'Thunfisch (Dose)' where label in ('Tuna konzerve', 'Thunfisch Konserve');
+update shopping_items set label = 'Sardinen' where label = 'Sardinien';
+update shopping_items set label = 'Kokosbutter' where label = 'Kokos Butter';
+update shopping_items set label = 'Honig / Agave' where label = 'Hönig/agave';
+update shopping_items set label = 'Vanilleschote' where label = 'Vanille Stuck';
+update shopping_items set label = 'Vanillezucker' where label = 'Vanille Zucker';
+update shopping_items set label = 'Cashews' where label = 'Cashew';
+update shopping_items set label = 'Trüffelpesto' where label = 'Trüffel Pesto';
+update shopping_items set label = 'Oliven (Dose)' where label in ('Oliven konzerve', 'Oliven Konserve');
+update shopping_items set label = 'Senf / Tomatenmark' where label in ('Senf/Tomaten Mark', 'Senf / Tomaten Mark');
