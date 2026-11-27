@@ -406,6 +406,13 @@ a {
   white-space: nowrap;
 }
 
+.chip-leave {
+  white-space: normal;
+  line-height: 1.15;
+  border-radius: 8px;
+  font-size: 0.62rem;
+}
+
 .list-row {
   display: flex;
   flex-direction: column;

@@ -67,16 +67,16 @@ export type AppState = {
 };
 
 export const LEAVE_TYPE_AT: Record<LeaveType, string> = {
-  free_day: "Freier Tag",
-  vacation: "Urlaub",
+  free_day: "Frei",
+  vacation: "Frei",
 };
 
 export const LEAVE_TYPE_SHORT_AT: Record<LeaveType, string> = {
   free_day: "frei",
-  vacation: "Urlaub",
+  vacation: "frei",
 };
 
-/** Calendar / list colors: work green, free day soft red, vacation deep red. */
+/** Calendar / list colors — all leave shown as Frei. */
 export const LEAVE_TYPE_COLORS: Record<
   LeaveType,
   { bg: string; fg: string; border: string }
@@ -87,9 +87,9 @@ export const LEAVE_TYPE_COLORS: Record<
     border: "color-mix(in srgb, var(--free-day) 45%, transparent)",
   },
   vacation: {
-    bg: "var(--vacation-soft)",
-    fg: "#ffc9c9",
-    border: "color-mix(in srgb, var(--vacation) 55%, transparent)",
+    bg: "var(--free-day-soft)",
+    fg: "var(--free-day)",
+    border: "color-mix(in srgb, var(--free-day) 45%, transparent)",
   },
 };
 

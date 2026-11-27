@@ -17,7 +17,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "FitzTeam",
   description:
-    "Dienstplan, freie Tage, Urlaub, Reservierungen und Einkauf für Restaurant Fitz.",
+    "Dienstplan, freie Tage, Reservierungen und Einkauf für Restaurant Fitz.",
 };
 
 export const viewport: Viewport = {
