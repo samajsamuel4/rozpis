@@ -217,8 +217,9 @@ export default function ShoppingList({
       <div className="modal-sheet shopping-sheet">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h2 className="brand-title text-3xl">Einkauf</h2>
-            <p className="mt-1 text-sm text-[var(--ink-soft)]">
+            <p className="eyebrow">Liste</p>
+            <h2 className="section-title mt-1 text-3xl">Einkauf</h2>
+            <p className="mt-2 text-sm text-[var(--ink-muted)]">
               Antippen → grün → auf dem Zettel.
             </p>
           </div>
