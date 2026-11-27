@@ -10,7 +10,19 @@ import {
   toISODate,
   weekdayLabels,
 } from "@/lib/dates";
-import type { AppState, LeaveRequest, Person, Shift } from "@/lib/types";
+import type {
+  AppState,
+  LeaveRequest,
+  LeaveType,
+  Person,
+  Shift,
+} from "@/lib/types";
+import {
+  LEAVE_TYPE_AT,
+  LEAVE_TYPE_COLORS,
+  LEAVE_TYPE_SHORT_AT,
+  WORK_CHIP_BG,
+} from "@/lib/types";
 
 const WHO_KEY = "rozpis-who-am-i";
 const EDIT_KEY = "rozpis-edit-code";
@@ -216,6 +228,7 @@ export default function RozpisApp() {
     start_date: string;
     end_date: string;
     note: string;
+    leave_type: LeaveType;
   }) {
     if (!(await requireUnlock())) return;
     setBusy(true);
@@ -227,7 +240,7 @@ export default function RozpisApp() {
       });
       if (!res.ok) {
         throw new Error(
-          await readApiError(res, "Urlaubsantrag konnte nicht gesendet werden"),
+          await readApiError(res, "Antrag konnte nicht gesendet werden"),
         );
       }
       await load(year, month);
@@ -258,14 +271,18 @@ export default function RozpisApp() {
     }
   }
 
-  async function addPerson(name: string) {
+  async function addPerson(name: string, workStart: string, workEnd: string) {
     if (!(await requireUnlock())) return;
     setBusy(true);
     try {
       const res = await fetch("/api/people", {
         method: "POST",
         headers: mutateHeaders(),
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          work_start: workStart,
+          work_end: workEnd,
+        }),
       });
       if (!res.ok)
         throw new Error(await readApiError(res, "Kollege konnte nicht hinzugefügt werden"));
@@ -279,17 +296,27 @@ export default function RozpisApp() {
     }
   }
 
-  async function renamePerson(id: number, name: string) {
+  async function renamePerson(
+    id: number,
+    name: string,
+    workStart: string,
+    workEnd: string,
+  ) {
     if (!(await requireUnlock())) return;
     setBusy(true);
     try {
       const res = await fetch("/api/people", {
         method: "PATCH",
         headers: mutateHeaders(),
-        body: JSON.stringify({ id, name }),
+        body: JSON.stringify({
+          id,
+          name,
+          work_start: workStart,
+          work_end: workEnd,
+        }),
       });
       if (!res.ok)
-        throw new Error(await readApiError(res, "Name konnte nicht geändert werden"));
+        throw new Error(await readApiError(res, "Konnte nicht geändert werden"));
       await load(year, month);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Fehler");
@@ -301,7 +328,7 @@ export default function RozpisApp() {
   async function removePerson(id: number) {
     if (
       !confirm(
-        "Diesen Kollegen wirklich löschen – inklusive aller Schichten und Urlaube?",
+        "Diesen Kollegen wirklich löschen – inklusive aller Schichten und Abwesenheiten?",
       )
     ) {
       return;
@@ -332,7 +359,9 @@ export default function RozpisApp() {
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-soft)]">
           Restaurant Fitz · Team
         </p>
-        <h1 className="brand-title text-[clamp(2.8rem,13vw,5.4rem)]">Rozpis</h1>
+        <h1 className="brand-title text-[clamp(2.8rem,13vw,5.4rem)]">
+          Dienstplan
+        </h1>
 
         {state?.sampleMode ? (
           <div className="mt-4 inline-flex items-center rounded-xl border border-[var(--gold)]/35 bg-[color-mix(in_srgb,var(--gold)_18%,transparent)] px-3 py-1.5 text-sm font-semibold text-[var(--gold)]">
@@ -348,8 +377,8 @@ export default function RozpisApp() {
               Bearbeitung
             </p>
             <p className="mt-1 text-sm text-[var(--ink-soft)]">
-              Kalender ist für alle lesbar. Schichten, Urlaub und Kollegen brauchen
-              den Team-Code.
+              Kalender ist für alle lesbar. Schichten, freie Tage, Urlaub und
+              Kollegen brauchen den Team-Code.
             </p>
           </div>
           {unlocked ? (
@@ -417,7 +446,7 @@ export default function RozpisApp() {
             onClick={() => setModal({ type: "leave" })}
             disabled={!who || !unlocked}
           >
-            Urlaub beantragen
+            Abwesenheit
           </button>
           <button
             type="button"
@@ -520,8 +549,11 @@ export default function RozpisApp() {
                     <span
                       key={s.id}
                       className="chip text-[0.62rem] text-white sm:text-[0.72rem]"
-                      style={{ background: s.person_color || "#1a8f84" }}
-                      title={`${s.person_name} ${s.start_time}–${s.end_time}`}
+                      style={{
+                        background: WORK_CHIP_BG,
+                        border: "1px solid color-mix(in srgb, var(--work-deep) 40%, transparent)",
+                      }}
+                      title={`${s.person_name} ${s.start_time}–${s.end_time} (Arbeit)`}
                     >
                       <span className="hidden sm:inline">
                         {s.person_name?.split(" ")[0]} {s.start_time}
@@ -531,24 +563,31 @@ export default function RozpisApp() {
                       </span>
                     </span>
                   ))}
-                  {dayLeave.slice(0, 1).map((l) => (
-                    <span
-                      key={`l-${l.id}`}
-                      className="chip text-[0.62rem] text-[var(--leave)] sm:text-[0.7rem]"
-                      style={{
-                        background:
-                          "color-mix(in srgb, var(--leave) 18%, transparent)",
-                      }}
-                      title={`${l.person_name}: Urlaub (${STATUS_AT[l.status]})`}
-                    >
-                      <span className="hidden sm:inline">
-                        {l.person_name?.split(" ")[0]} Urlaub
+                  {dayLeave.slice(0, 1).map((l) => {
+                    const kind = l.leave_type ?? "free_day";
+                    const colors = LEAVE_TYPE_COLORS[kind];
+                    return (
+                      <span
+                        key={`l-${l.id}`}
+                        className="chip text-[0.62rem] sm:text-[0.7rem]"
+                        style={{
+                          background: colors.bg,
+                          color: colors.fg,
+                          border: `1px solid ${colors.border}`,
+                        }}
+                        title={`${l.person_name}: ${LEAVE_TYPE_AT[kind]} (${STATUS_AT[l.status]})`}
+                      >
+                        <span className="hidden sm:inline">
+                          {l.person_name?.split(" ")[0]}{" "}
+                          {LEAVE_TYPE_SHORT_AT[kind]}
+                        </span>
+                        <span className="sm:hidden">
+                          {(l.person_name ?? "?").slice(0, 1)}+
+                          {kind === "vacation" ? "U" : "F"}
+                        </span>
                       </span>
-                      <span className="sm:hidden">
-                        {(l.person_name ?? "?").slice(0, 1)}+U
-                      </span>
-                    </span>
-                  ))}
+                    );
+                  })}
                   {dayShifts.length + dayLeave.length > 3 ? (
                     <span className="text-[0.65rem] font-semibold text-[var(--ink-soft)]">
                       +{dayShifts.length + dayLeave.length - 3}
@@ -565,26 +604,45 @@ export default function RozpisApp() {
       </section>
 
       <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
-        <h3 className="brand-title mb-3 text-xl">Urlaubsanträge</h3>
+        <h3 className="brand-title mb-3 text-xl">Abwesenheiten</h3>
         <ul className="flex flex-col gap-3">
           {(state?.leave ?? []).length === 0 ? (
             <li className="text-sm text-[var(--ink-soft)]">
               Noch keine Anträge in diesem Monat.
             </li>
           ) : (
-            (state?.leave ?? []).map((l) => (
+            (state?.leave ?? []).map((l) => {
+              const kind = l.leave_type ?? "free_day";
+              const colors = LEAVE_TYPE_COLORS[kind];
+              return (
               <li
                 key={l.id}
-                className="flex flex-col gap-2 rounded-2xl border border-[var(--line)] bg-white/[0.05] p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                style={{
+                  background: colors.bg,
+                  borderColor: colors.border,
+                }}
               >
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ background: l.person_color || "#e8a0a0" }}
+                      style={{ background: colors.fg }}
                     />
                     <strong>{l.person_name}</strong>
-                    <span className="rounded-lg bg-white/10 px-2 py-0.5 text-xs font-semibold text-[var(--ink-soft)]">
+                    <span
+                      className="rounded-lg px-2 py-0.5 text-xs font-semibold"
+                      style={{
+                        background:
+                          kind === "vacation"
+                            ? "var(--vacation)"
+                            : "var(--free-day)",
+                        color: "#fff",
+                      }}
+                    >
+                      {LEAVE_TYPE_AT[kind]}
+                    </span>
+                    <span className="rounded-lg bg-black/20 px-2 py-0.5 text-xs font-semibold text-[var(--ink-soft)]">
                       {STATUS_AT[l.status]}
                     </span>
                   </div>
@@ -616,7 +674,8 @@ export default function RozpisApp() {
                   ) : null}
                 </div>
               </li>
-            ))
+              );
+            })
           )}
         </ul>
       </section>
@@ -687,17 +746,23 @@ function DayModal({
   onDeleteShift: (id: number) => void;
 }) {
   const mine = shifts.find((s) => s.person_id === who?.id);
-  const [personId, setPersonId] = useState(who?.id ?? people[0]?.id ?? 0);
-  const [start, setStart] = useState(mine?.start_time ?? "08:00");
-  const [end, setEnd] = useState(mine?.end_time ?? "16:00");
+  const initialPerson = who ?? people[0] ?? null;
+  const [personId, setPersonId] = useState(initialPerson?.id ?? 0);
+  const [start, setStart] = useState(
+    mine?.start_time ?? initialPerson?.work_start ?? "08:00",
+  );
+  const [end, setEnd] = useState(
+    mine?.end_time ?? initialPerson?.work_end ?? "16:00",
+  );
   const [note, setNote] = useState(mine?.note ?? "");
 
   useEffect(() => {
     const current = shifts.find((s) => s.person_id === personId);
-    setStart(current?.start_time ?? "08:00");
-    setEnd(current?.end_time ?? "16:00");
+    const person = people.find((p) => p.id === personId);
+    setStart(current?.start_time ?? person?.work_start ?? "08:00");
+    setEnd(current?.end_time ?? person?.work_end ?? "16:00");
     setNote(current?.note ?? "");
-  }, [personId, shifts]);
+  }, [personId, shifts, people]);
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -713,7 +778,9 @@ function DayModal({
             <h3 id="day-title" className="brand-title text-2xl">
               Tag {formatDayAt(date)}
             </h3>
-            <p className="text-sm text-[var(--ink-soft)]">Schicht setzen oder ändern.</p>
+            <p className="text-sm text-[var(--ink-soft)]">
+              Schicht / Arbeitszeit setzen oder ändern.
+            </p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
             ✕
@@ -742,19 +809,29 @@ function DayModal({
                 </button>
               </div>
             ))}
-            {leave.map((l) => (
-              <div
-                key={l.id}
-                className="rounded-xl border border-[var(--leave)]/25 bg-[color-mix(in_srgb,var(--leave)_12%,transparent)] px-3 py-2 text-sm"
-              >
-                <strong>{l.person_name}</strong> — Urlaub ({STATUS_AT[l.status]})
-                {l.note ? ` · ${l.note}` : ""}
-              </div>
-            ))}
+            {leave.map((l) => {
+              const kind = l.leave_type ?? "free_day";
+              const colors = LEAVE_TYPE_COLORS[kind];
+              return (
+                <div
+                  key={l.id}
+                  className="rounded-xl border px-3 py-2 text-sm"
+                  style={{
+                    background: colors.bg,
+                    borderColor: colors.border,
+                    color: colors.fg,
+                  }}
+                >
+                  <strong>{l.person_name}</strong> — {LEAVE_TYPE_AT[kind]} (
+                  {STATUS_AT[l.status]})
+                  {l.note ? ` · ${l.note}` : ""}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="mb-4 text-sm text-[var(--ink-soft)]">
-            Noch keine Schichten oder Urlaub.
+            Noch keine Schichten oder Abwesenheiten.
           </p>
         )}
 
@@ -785,28 +862,31 @@ function DayModal({
               ))}
             </select>
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-sm font-semibold">
-              Von
-              <input
-                className="field mt-1"
-                type="time"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                required
-              />
-            </label>
-            <label className="block text-sm font-semibold">
-              Bis
-              <input
-                className="field mt-1"
-                type="time"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                required
-              />
-            </label>
-          </div>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold">Arbeitszeit</legend>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm font-semibold text-[var(--ink-soft)]">
+                Von
+                <input
+                  className="field mt-1"
+                  type="time"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="block text-sm font-semibold text-[var(--ink-soft)]">
+                Bis
+                <input
+                  className="field mt-1"
+                  type="time"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  required
+                />
+              </label>
+            </div>
+          </fieldset>
           <label className="block text-sm font-semibold">
             Notiz
             <input
@@ -822,7 +902,7 @@ function DayModal({
               className="btn btn-primary"
               disabled={busy || !personId}
             >
-              Schicht speichern
+              Arbeitszeit speichern
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Schließen
@@ -850,10 +930,12 @@ function LeaveModal({
     start_date: string;
     end_date: string;
     note: string;
+    leave_type: LeaveType;
   }) => Promise<void>;
 }) {
   const today = toISODate(new Date());
   const [personId, setPersonId] = useState(who.id);
+  const [leaveType, setLeaveType] = useState<LeaveType>("free_day");
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState(today);
   const [note, setNote] = useState("");
@@ -870,10 +952,11 @@ function LeaveModal({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h3 id="leave-title" className="brand-title text-2xl">
-              Urlaub beantragen
+              Abwesenheit
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
-              Zeitraum wählen. Status bleibt „Offen“, bis jemand genehmigt.
+              Freier Tag oder Urlaub wählen. Status bleibt „Offen“, bis jemand
+              genehmigt.
             </p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
@@ -889,9 +972,21 @@ function LeaveModal({
               start_date: start,
               end_date: end,
               note,
+              leave_type: leaveType,
             });
           }}
         >
+          <label className="block text-sm font-semibold">
+            Art
+            <select
+              className="field mt-1"
+              value={leaveType}
+              onChange={(e) => setLeaveType(e.target.value as LeaveType)}
+            >
+              <option value="free_day">Freier Tag</option>
+              <option value="vacation">Urlaub</option>
+            </select>
+          </label>
           <label className="block text-sm font-semibold">
             Für wen
             <select
@@ -962,13 +1057,26 @@ function PeopleModal({
   people: Person[];
   busy: boolean;
   onClose: () => void;
-  onAdd: (name: string) => Promise<void>;
-  onRename: (id: number, name: string) => Promise<void>;
+  onAdd: (
+    name: string,
+    workStart: string,
+    workEnd: string,
+  ) => Promise<void>;
+  onRename: (
+    id: number,
+    name: string,
+    workStart: string,
+    workEnd: string,
+  ) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
 }) {
   const [name, setName] = useState("");
+  const [workStart, setWorkStart] = useState("08:00");
+  const [workEnd, setWorkEnd] = useState("16:00");
   const [editing, setEditing] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [editStart, setEditStart] = useState("08:00");
+  const [editEnd, setEditEnd] = useState("16:00");
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -985,7 +1093,7 @@ function PeopleModal({
               Kollegen
             </h3>
             <p className="text-sm text-[var(--ink-soft)]">
-              Namen im Dienstplan hinzufügen oder ändern.
+              Namen und Standard-Arbeitszeit im Dienstplan.
             </p>
           </div>
           <button type="button" className="btn btn-ghost px-3" onClick={onClose}>
@@ -997,14 +1105,16 @@ function PeopleModal({
           {people.map((p) => (
             <li
               key={p.id}
-              className="flex flex-col gap-2 rounded-xl border border-[var(--line)] bg-white/[0.05] p-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 rounded-xl border border-[var(--line)] bg-white/[0.05] p-3"
             >
               {editing === p.id ? (
                 <form
-                  className="flex w-full flex-col gap-2 sm:flex-row sm:items-center"
+                  className="flex w-full flex-col gap-2"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    void onRename(p.id, editName).then(() => setEditing(null));
+                    void onRename(p.id, editName, editStart, editEnd).then(
+                      () => setEditing(null),
+                    );
                   }}
                 >
                   <input
@@ -1013,6 +1123,26 @@ function PeopleModal({
                     onChange={(e) => setEditName(e.target.value)}
                     autoFocus
                   />
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-xs font-semibold text-[var(--ink-soft)]">
+                      Arbeitszeit von
+                      <input
+                        className="field mt-1"
+                        type="time"
+                        value={editStart}
+                        onChange={(e) => setEditStart(e.target.value)}
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-[var(--ink-soft)]">
+                      bis
+                      <input
+                        className="field mt-1"
+                        type="time"
+                        value={editEnd}
+                        onChange={(e) => setEditEnd(e.target.value)}
+                      />
+                    </label>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       type="submit"
@@ -1031,13 +1161,18 @@ function PeopleModal({
                   </div>
                 </form>
               ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ background: p.color }}
-                    />
-                    <strong>{p.name}</strong>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 rounded-full"
+                        style={{ background: p.color }}
+                      />
+                      <strong>{p.name}</strong>
+                    </div>
+                    <p className="mt-1 text-sm text-[var(--ink-soft)]">
+                      Arbeitszeit {p.work_start ?? "08:00"}–{p.work_end ?? "16:00"}
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -1046,6 +1181,8 @@ function PeopleModal({
                       onClick={() => {
                         setEditing(p.id);
                         setEditName(p.name);
+                        setEditStart(p.work_start ?? "08:00");
+                        setEditEnd(p.work_end ?? "16:00");
                       }}
                     >
                       Ändern
@@ -1059,19 +1196,23 @@ function PeopleModal({
                       Löschen
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </li>
           ))}
         </ul>
 
         <form
-          className="flex flex-col gap-2 sm:flex-row"
+          className="flex flex-col gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             const n = name.trim();
             if (!n) return;
-            void onAdd(n).then(() => setName(""));
+            void onAdd(n, workStart, workEnd).then(() => {
+              setName("");
+              setWorkStart("08:00");
+              setWorkEnd("16:00");
+            });
           }}
         >
           <input
@@ -1080,6 +1221,26 @@ function PeopleModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-semibold text-[var(--ink-soft)]">
+              Arbeitszeit von
+              <input
+                className="field mt-1"
+                type="time"
+                value={workStart}
+                onChange={(e) => setWorkStart(e.target.value)}
+              />
+            </label>
+            <label className="text-xs font-semibold text-[var(--ink-soft)]">
+              bis
+              <input
+                className="field mt-1"
+                type="time"
+                value={workEnd}
+                onChange={(e) => setWorkEnd(e.target.value)}
+              />
+            </label>
+          </div>
           <button
             type="submit"
             className="btn btn-primary"
