@@ -71,7 +71,17 @@ export default function RozpisApp() {
         cache: "no-store",
         headers,
       });
-      if (!res.ok) throw new Error("Dienstplan konnte nicht geladen werden");
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(
+          j?.error ||
+            (res.status === 429
+              ? "Zu viele falsche Codes. Bitte später erneut versuchen."
+              : "Dienstplan konnte nicht geladen werden"),
+        );
+      }
       const data = (await res.json()) as AppState;
       setState(data);
     } catch (e) {
@@ -166,6 +176,7 @@ export default function RozpisApp() {
         const list = map.get(key) ?? [];
         list.push({
           ...l,
+          note: l.note ?? "",
           start_date: asDay(l.start_date),
           end_date: asDay(l.end_date),
         });
@@ -188,14 +199,23 @@ export default function RozpisApp() {
 
   const reservationTotalsByDate = useMemo(() => {
     const map = new Map<string, { count: number; guests: number }>();
-    for (const [key, list] of reservationsByDate) {
-      map.set(key, {
-        count: list.length,
-        guests: list.reduce((sum, r) => sum + Number(r.guest_count || 0), 0),
+    for (const t of state?.reservationTotals ?? []) {
+      map.set(asDay(t.date), {
+        count: Number(t.count || 0),
+        guests: Number(t.guests || 0),
       });
     }
+    // Fallback if older payload only had reservation rows
+    if (map.size === 0) {
+      for (const [key, list] of reservationsByDate) {
+        map.set(key, {
+          count: list.length,
+          guests: list.reduce((sum, r) => sum + Number(r.guest_count || 0), 0),
+        });
+      }
+    }
     return map;
-  }, [reservationsByDate]);
+  }, [state, reservationsByDate]);
 
   function pickWho(id: number) {
     setWhoId(id);
@@ -728,12 +748,8 @@ export default function RozpisApp() {
           </button>
         </div>
         <ul className="flex flex-col gap-3">
-          {(state?.reservations ?? []).length === 0 ? (
-            <li className="text-sm text-[var(--ink-soft)]">
-              Noch keine Reservierungen in diesem Monat.
-            </li>
-          ) : (
-            (state?.reservations ?? []).map((r) => (
+          {state?.detailsUnlocked && (state.reservations?.length ?? 0) > 0 ? (
+            state.reservations.map((r) => (
               <li
                 key={r.id}
                 className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -745,9 +761,7 @@ export default function RozpisApp() {
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <strong>
-                      {r.guest_name.trim() || "Reservierung"}
-                    </strong>
+                    <strong>{r.guest_name.trim() || "Reservierung"}</strong>
                     <span
                       className="rounded-lg px-2 py-0.5 text-xs font-semibold text-[#1a1410]"
                       style={{ background: "var(--reserve)" }}
@@ -771,6 +785,31 @@ export default function RozpisApp() {
                 </button>
               </li>
             ))
+          ) : (state?.reservationTotals ?? []).length > 0 ? (
+            (state?.reservationTotals ?? []).map((t) => (
+              <li
+                key={t.date}
+                className="rounded-2xl border px-3 py-2 text-sm"
+                style={{
+                  background: "var(--reserve-soft)",
+                  borderColor:
+                    "color-mix(in srgb, var(--reserve) 45%, transparent)",
+                }}
+              >
+                <strong>{formatDayAt(asDay(t.date))}</strong>
+                <span className="text-[var(--ink-soft)]">
+                  {" "}
+                  · {t.count} Res. · {t.guests} Gäste
+                  {!state?.detailsUnlocked
+                    ? " · Namen nach Freischaltung"
+                    : ""}
+                </span>
+              </li>
+            ))
+          ) : (
+            <li className="text-sm text-[var(--ink-soft)]">
+              Noch keine Reservierungen in diesem Monat.
+            </li>
           )}
         </ul>
       </section>
