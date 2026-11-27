@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertCanMutate } from "@/lib/access";
 import { sql } from "@/lib/db";
 import type { LeaveRequest } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const denied = assertCanMutate(request);
+  if (denied) return denied;
+
   const body = (await request.json()) as {
     person_id?: number;
     start_date?: string;
@@ -34,6 +38,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const denied = assertCanMutate(request);
+  if (denied) return denied;
+
   const body = (await request.json()) as {
     id?: number;
     status?: "pending" | "approved" | "cancelled";
