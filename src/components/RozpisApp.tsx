@@ -24,6 +24,11 @@ import {
   WORK_CHIP_BG,
 } from "@/lib/types";
 import ShoppingList from "@/components/ShoppingList";
+import TimeWheelPicker from "@/components/TimeWheelPicker";
+import {
+  formatHoursAt,
+  sumShiftHours,
+} from "@/lib/attendance";
 import {
   isClosedDay,
   openingHoursFor,
@@ -31,6 +36,7 @@ import {
 } from "@/lib/hours";
 
 const WHO_KEY = "rozpis-who-am-i";
+const FILTER_KEY = "rozpis-person-filter";
 const EDIT_KEY = "rozpis-edit-code";
 
 type Modal =
@@ -60,6 +66,8 @@ export default function RozpisApp() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [whoId, setWhoId] = useState<number | null>(null);
+  /** null = Alle Kollegen (no attendance totals). */
+  const [filterPersonId, setFilterPersonId] = useState<number | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
   const [editCode, setEditCode] = useState("");
@@ -175,6 +183,13 @@ export default function RozpisApp() {
   useEffect(() => {
     const raw = localStorage.getItem(WHO_KEY);
     if (raw) setWhoId(Number(raw));
+    const filterRaw = localStorage.getItem(FILTER_KEY);
+    if (filterRaw === "all" || filterRaw === "") {
+      setFilterPersonId(null);
+    } else if (filterRaw) {
+      const n = Number(filterRaw);
+      if (!Number.isNaN(n)) setFilterPersonId(n);
+    }
     const saved = sessionStorage.getItem(EDIT_KEY) ?? "";
     if (saved) {
       void enterWithCode(saved, true);
@@ -191,7 +206,22 @@ export default function RozpisApp() {
     if (first != null) localStorage.setItem(WHO_KEY, String(first));
   }, [state, whoId]);
 
+  useEffect(() => {
+    if (!state?.people.length) return;
+    if (
+      filterPersonId != null &&
+      !state.people.some((p) => p.id === filterPersonId)
+    ) {
+      setFilterPersonId(null);
+      localStorage.setItem(FILTER_KEY, "all");
+    }
+  }, [state, filterPersonId]);
+
   const who = state?.people.find((p) => p.id === whoId) ?? null;
+  const filterPerson =
+    filterPersonId == null
+      ? null
+      : (state?.people.find((p) => p.id === filterPersonId) ?? null);
 
   function mutateHeaders(): HeadersInit {
     return {
@@ -282,6 +312,20 @@ export default function RozpisApp() {
     setWhoId(id);
     localStorage.setItem(WHO_KEY, String(id));
   }
+
+  function pickFilter(id: number | null) {
+    setFilterPersonId(id);
+    localStorage.setItem(FILTER_KEY, id == null ? "all" : String(id));
+    if (id != null) pickWho(id);
+  }
+
+  const monthHours = useMemo(() => {
+    if (filterPersonId == null) return null;
+    const mine = (state?.shifts ?? []).filter(
+      (s) => s.person_id === filterPersonId,
+    );
+    return sumShiftHours(mine);
+  }, [state, filterPersonId]);
 
   function shiftMonth(delta: number) {
     const d = new Date(year, month + delta, 1);
@@ -668,18 +712,15 @@ export default function RozpisApp() {
         </div>
       ) : null}
 
-      <section className="surface anim-rise p-3.5 sm:p-5">
-        <div className="mb-1">
-          <p className="eyebrow mb-2">Monat</p>
-        </div>
-        <div className="calendar-nav mb-4 flex items-center justify-between gap-2">
+      <section className="surface calendar-surface anim-rise p-3 sm:p-4">
+        <div className="calendar-nav mb-2 flex items-center justify-between gap-2">
           <button
             type="button"
             className="btn btn-ghost"
             onClick={() => shiftMonth(-1)}
             aria-label="Voriger Monat"
           >
-            ←
+            ‹
           </button>
           <h2 className="month-title text-center">
             {monthTitle(year, month)}
@@ -690,9 +731,45 @@ export default function RozpisApp() {
             onClick={() => shiftMonth(1)}
             aria-label="Nächster Monat"
           >
-            →
+            ›
           </button>
         </div>
+
+        {(state?.people.length ?? 0) > 0 ? (
+          <div className="person-filter" role="tablist" aria-label="Kollege filtern">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterPersonId == null}
+              className={`person-chip${filterPersonId == null ? " is-active" : ""}`}
+              onClick={() => pickFilter(null)}
+            >
+              Alle
+            </button>
+            {(state?.people ?? []).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={filterPersonId === p.id}
+                className={`person-chip${filterPersonId === p.id ? " is-active" : ""}`}
+                onClick={() => pickFilter(p.id)}
+              >
+                {p.name.split(" ")[0]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {filterPerson && monthHours != null ? (
+          <div className="attendance-card" aria-live="polite">
+            <div className="label">Stunden · {monthTitle(year, month)}</div>
+            <div className="value">{formatHoursAt(monthHours)}</div>
+            <p className="hint">
+              {filterPerson.name} — Summe aus eingetragenen Schichten
+            </p>
+          </div>
+        ) : null}
 
         <div className="weekday-row">
           {weekdayLabels().map((d) => (
@@ -703,38 +780,40 @@ export default function RozpisApp() {
         <div className="day-grid">
           {cells.map((cell, idx) => {
             if (!cell.date) {
-              return (
-                <div key={`e-${idx}`} className="min-h-[4.4rem] sm:min-h-[6.2rem]" />
-              );
+              return <div key={`e-${idx}`} className="day-empty" />;
             }
-            const dayShifts = shiftsByDate.get(cell.date) ?? [];
-            const dayLeave = leaveByDate.get(cell.date) ?? [];
+            const rawShifts = shiftsByDate.get(cell.date) ?? [];
+            const rawLeave = leaveByDate.get(cell.date) ?? [];
+            const dayShifts =
+              filterPersonId == null
+                ? rawShifts
+                : rawShifts.filter((s) => s.person_id === filterPersonId);
+            const dayLeave =
+              filterPersonId == null
+                ? rawLeave
+                : rawLeave.filter((l) => l.person_id === filterPersonId);
             const dayRes = reservationTotalsByDate.get(cell.date);
             const isToday = cell.date === todayIso;
             const closed = isClosedDay(cell.date);
+            const showRes =
+              filterPersonId == null && dayRes && dayRes.guests > 0;
             return (
               <button
                 key={cell.date}
                 type="button"
-                className={`day-cell flex min-h-[4.8rem] flex-col rounded-[12px] border border-[var(--line)] bg-black/25 p-1 text-left sm:min-h-[6.4rem] sm:rounded-xl sm:p-1.5 ${
+                className={`day-cell flex flex-col items-center pt-1.5 text-center ${
                   isToday ? "is-today" : ""
                 } ${closed ? "is-closed" : ""}`}
                 onClick={() => setModal({ type: "day", date: cell.date! })}
               >
-                <span
-                  className={`mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.78rem] font-bold sm:h-7 sm:w-7 sm:text-sm ${
-                    isToday
-                      ? "bg-[var(--gold)] text-[var(--ink-dark)]"
-                      : "text-[var(--ink)]"
-                  }`}
-                >
-                  {cell.day}
-                </span>
-                <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+                <span className="day-num">{cell.day}</span>
+                <div className="day-markers">
                   {closed ? (
-                    <span className="chip chip-closed">geschlossen</span>
+                    <span className="chip-closed" title="geschlossen">
+                      zu
+                    </span>
                   ) : null}
-                  {dayRes && dayRes.guests > 0 ? (
+                  {showRes ? (
                     <span
                       className="chip"
                       style={{
@@ -743,51 +822,71 @@ export default function RozpisApp() {
                         border:
                           "1px solid color-mix(in srgb, var(--reserve) 40%, transparent)",
                       }}
-                      title={`${dayRes.count} Reservierung(en), ${dayRes.guests} Gäste`}
+                      title={`${dayRes!.count} Reservierung(en), ${dayRes!.guests} Gäste`}
                     >
-                      <span className="hidden sm:inline">
-                        {dayRes.guests} Gäste · {dayRes.count} Res.
-                      </span>
-                      <span className="sm:hidden">{dayRes.guests}G</span>
+                      {dayRes!.guests}G
                     </span>
                   ) : null}
-                  {dayShifts.slice(0, 1).map((s) => (
-                    <span
-                      key={s.id}
-                      className="chip text-white"
-                      style={{
-                        background: WORK_CHIP_BG,
-                        border:
-                          "1px solid color-mix(in srgb, var(--work-deep) 35%, transparent)",
-                      }}
-                      title={`${s.person_name} ${s.start_time}–${s.end_time} (Arbeit)`}
-                    >
-                      <span className="hidden sm:inline">
-                        {s.person_name?.split(" ")[0]} {s.start_time}
-                      </span>
-                      <span className="sm:hidden">
-                        {(s.person_name ?? "?").slice(0, 2)}
-                      </span>
-                    </span>
-                  ))}
-                  {dayLeave.slice(0, 2).map((l) => {
-                    const kind = l.leave_type ?? "free_day";
-                    const colors = LEAVE_TYPE_COLORS[kind];
-                    return (
-                      <span
-                        key={`l-${l.id}`}
-                        className="chip chip-leave"
-                        style={{
-                          background: colors.bg,
-                          color: colors.fg,
-                          border: `1px solid ${colors.border}`,
-                        }}
-                        title={`${l.person_name}: Frei (${STATUS_AT[l.status]})`}
-                      >
-                        {l.person_name} frei
-                      </span>
-                    );
-                  })}
+                  {filterPersonId != null
+                    ? dayShifts.slice(0, 1).map((s) => (
+                        <span
+                          key={s.id}
+                          className="chip text-white"
+                          style={{
+                            background: WORK_CHIP_BG,
+                            border:
+                              "1px solid color-mix(in srgb, var(--work-deep) 35%, transparent)",
+                          }}
+                          title={`${s.start_time}–${s.end_time}`}
+                        >
+                          {s.start_time}
+                        </span>
+                      ))
+                    : null}
+                  {filterPersonId != null
+                    ? dayLeave.slice(0, 1).map((l) => {
+                        const kind = l.leave_type ?? "free_day";
+                        const colors = LEAVE_TYPE_COLORS[kind];
+                        return (
+                          <span
+                            key={`l-${l.id}`}
+                            className="chip chip-leave"
+                            style={{
+                              background: colors.bg,
+                              color: colors.fg,
+                              border: `1px solid ${colors.border}`,
+                            }}
+                            title={`Frei (${STATUS_AT[l.status]})`}
+                          >
+                            frei
+                          </span>
+                        );
+                      })
+                    : null}
+                  {filterPersonId == null ? (
+                    <div className="day-dot-row">
+                      {dayShifts.slice(0, 3).map((s) => (
+                        <span
+                          key={s.id}
+                          className="day-dot"
+                          style={{ background: s.person_color || WORK_CHIP_BG }}
+                          title={`${s.person_name} ${s.start_time}–${s.end_time}`}
+                        />
+                      ))}
+                      {dayLeave.slice(0, 2).map((l) => {
+                        const kind = l.leave_type ?? "free_day";
+                        const colors = LEAVE_TYPE_COLORS[kind];
+                        return (
+                          <span
+                            key={`l-${l.id}`}
+                            className="day-dot"
+                            style={{ background: colors.fg }}
+                            title={`${l.person_name}: Frei`}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </button>
             );
@@ -820,7 +919,7 @@ export default function RozpisApp() {
               className="legend-dot"
               style={{ background: "rgba(243, 235, 224, 0.35)" }}
             />
-            Geschlossen
+            zu = geschlossen
           </span>
         </div>
         <p className="mt-3 text-[0.72rem] leading-relaxed text-[var(--ink-muted)]">
@@ -1240,29 +1339,15 @@ function DayModal({
               ))}
             </select>
           </label>
-          <fieldset className="space-y-2">
+          <fieldset className="space-y-3">
             <legend className="text-sm font-semibold">Arbeitszeit</legend>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm font-semibold text-[var(--ink-soft)]">
-                Von
-                <input
-                  className="field mt-1"
-                  type="time"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  required
-                />
-              </label>
-              <label className="block text-sm font-semibold text-[var(--ink-soft)]">
-                Bis
-                <input
-                  className="field mt-1"
-                  type="time"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  required
-                />
-              </label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TimeWheelPicker
+                label="Von"
+                value={start}
+                onChange={setStart}
+              />
+              <TimeWheelPicker label="Bis" value={end} onChange={setEnd} />
             </div>
           </fieldset>
           <label className="block text-sm font-semibold">
@@ -1488,25 +1573,17 @@ function PeopleModal({
                     onChange={(e) => setEditName(e.target.value)}
                     autoFocus
                   />
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="text-xs font-semibold text-[var(--ink-soft)]">
-                      Arbeitszeit von
-                      <input
-                        className="field mt-1"
-                        type="time"
-                        value={editStart}
-                        onChange={(e) => setEditStart(e.target.value)}
-                      />
-                    </label>
-                    <label className="text-xs font-semibold text-[var(--ink-soft)]">
-                      bis
-                      <input
-                        className="field mt-1"
-                        type="time"
-                        value={editEnd}
-                        onChange={(e) => setEditEnd(e.target.value)}
-                      />
-                    </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <TimeWheelPicker
+                      label="Arbeitszeit von"
+                      value={editStart}
+                      onChange={setEditStart}
+                    />
+                    <TimeWheelPicker
+                      label="bis"
+                      value={editEnd}
+                      onChange={setEditEnd}
+                    />
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -1586,25 +1663,17 @@ function PeopleModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs font-semibold text-[var(--ink-soft)]">
-              Arbeitszeit von
-              <input
-                className="field mt-1"
-                type="time"
-                value={workStart}
-                onChange={(e) => setWorkStart(e.target.value)}
-              />
-            </label>
-            <label className="text-xs font-semibold text-[var(--ink-soft)]">
-              bis
-              <input
-                className="field mt-1"
-                type="time"
-                value={workEnd}
-                onChange={(e) => setWorkEnd(e.target.value)}
-              />
-            </label>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <TimeWheelPicker
+              label="Arbeitszeit von"
+              value={workStart}
+              onChange={setWorkStart}
+            />
+            <TimeWheelPicker
+              label="bis"
+              value={workEnd}
+              onChange={setWorkEnd}
+            />
           </div>
           <button
             type="submit"
@@ -1678,28 +1747,17 @@ function ReservationModal({
             });
           }}
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block text-sm font-semibold">
-              Datum
-              <input
-                className="field mt-1"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
-            </label>
-            <label className="block text-sm font-semibold">
-              Uhrzeit
-              <input
-                className="field mt-1"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                required
-              />
-            </label>
-          </div>
+          <label className="block text-sm font-semibold">
+            Datum
+            <input
+              className="field mt-1"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </label>
+          <TimeWheelPicker label="Uhrzeit" value={time} onChange={setTime} />
           <label className="block text-sm font-semibold">
             Gästezahl
             <input
