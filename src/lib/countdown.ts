@@ -1,6 +1,9 @@
 import { asDay, parseISODate, toISODate } from "@/lib/dates";
 import { openingHoursFor, type OpeningHours } from "@/lib/hours";
 
+/** Fitz kitchen clock — Vienna / Bratislava local. */
+export const FITZ_TZ = "Europe/Vienna";
+
 export type OpenCountdown =
   | {
       kind: "until_open";
@@ -15,16 +18,71 @@ export type OpenCountdown =
     }
   | {
       kind: "closed";
-      /** Next opening wall-clock, if known. */
       nextAt: string | null;
       nextLabel: string | null;
     };
 
-function atTime(isoDay: string, hhmm: string): Date {
+type LocalParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  iso: string;
+};
+
+function localParts(now: Date): LocalParts {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: FITZ_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const bag: Record<string, string> = {};
+  for (const p of fmt.formatToParts(now)) {
+    if (p.type !== "literal") bag[p.type] = p.value;
+  }
+  const year = Number(bag.year);
+  const month = Number(bag.month);
+  const day = Number(bag.day);
+  const hour = Number(bag.hour);
+  const minute = Number(bag.minute);
+  return {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    iso: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+  };
+}
+
+/** Instant for HH:MM on a calendar day in Fitz TZ. */
+function instantOnDay(isoDay: string, hhmm: string): Date {
   const [h, m] = hhmm.split(":").map(Number);
-  const d = parseISODate(asDay(isoDay));
-  d.setHours(h, m, 0, 0);
-  return d;
+  // Walk a UTC guess then correct via formatter (handles CET/CEST).
+  const [y, mo, d] = asDay(isoDay).split("-").map(Number);
+  let guess = Date.UTC(y, mo - 1, d, h - 1, m, 0); // Vienna ≈ UTC+1/+2
+  for (let i = 0; i < 4; i++) {
+    const parts = localParts(new Date(guess));
+    const wantMins = h * 60 + m;
+    const gotMins = parts.hour * 60 + parts.minute;
+    const dayDrift =
+      parts.iso === isoDay
+        ? 0
+        : parts.iso < isoDay
+          ? -24 * 60
+          : 24 * 60;
+    const deltaMins = wantMins - (gotMins + dayDrift);
+    if (deltaMins === 0 && parts.iso === isoDay) {
+      return new Date(guess);
+    }
+    guess += deltaMins * 60_000;
+  }
+  return new Date(guess);
 }
 
 function weekdayShort(iso: string): string {
@@ -33,15 +91,21 @@ function weekdayShort(iso: string): string {
   return labels[wd] ?? "";
 }
 
+function addDaysIso(iso: string, days: number): string {
+  const d = parseISODate(asDay(iso));
+  d.setDate(d.getDate() + days);
+  return toISODate(d);
+}
+
 function findNextOpen(
   from: Date,
+  fromIso: string,
 ): { day: string; hours: OpeningHours; at: Date } | null {
   for (let i = 0; i < 8; i++) {
-    const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);
-    const day = toISODate(d);
+    const day = addDaysIso(fromIso, i);
     const hours = openingHoursFor(day);
     if (!hours) continue;
-    const openAt = atTime(day, hours.start);
+    const openAt = instantOnDay(day, hours.start);
     if (openAt.getTime() > from.getTime()) {
       return { day, hours, at: openAt };
     }
@@ -49,22 +113,24 @@ function findNextOpen(
   return null;
 }
 
-function dayRelation(todayIso: string, targetIso: string): "heute" | "morgen" | string {
+function dayRelation(
+  todayIso: string,
+  targetIso: string,
+): "heute" | "morgen" | string {
   if (targetIso === todayIso) return "heute";
-  const t = parseISODate(todayIso);
-  t.setDate(t.getDate() + 1);
-  if (toISODate(t) === targetIso) return "morgen";
+  if (addDaysIso(todayIso, 1) === targetIso) return "morgen";
   return weekdayShort(targetIso);
 }
 
 /** Live restaurant countdown from opening hours (Mo closed, etc.). */
 export function openCountdownAt(now: Date): OpenCountdown {
-  const today = toISODate(now);
+  const local = localParts(now);
+  const today = local.iso;
   const hours = openingHoursFor(today);
 
   if (hours) {
-    const openAt = atTime(today, hours.start);
-    const closeAt = atTime(today, hours.end);
+    const openAt = instantOnDay(today, hours.start);
+    const closeAt = instantOnDay(today, hours.end);
     if (now.getTime() < openAt.getTime()) {
       return {
         kind: "until_open",
@@ -82,34 +148,22 @@ export function openCountdownAt(now: Date): OpenCountdown {
     }
   }
 
-  const next = findNextOpen(now);
+  const next = findNextOpen(now, today);
   if (!next) {
     return { kind: "closed", nextAt: null, nextLabel: null };
   }
 
-  // Still before next open — if somehow same day after hours, or tomorrow+
-  if (hours && today === next.day) {
-    // after close today but next is somehow today (shouldn't happen)
-  }
-
   const rel = dayRelation(today, next.day);
-  if (rel === "heute" || (hours == null && next.day === today)) {
+  // Soon until next open (e.g. late evening → tomorrow morning)
+  if (
+    (rel === "heute" || rel === "morgen") &&
+    next.at.getTime() - now.getTime() <= 18 * 60 * 60 * 1000
+  ) {
     return {
       kind: "until_open",
       ms: next.at.getTime() - now.getTime(),
       opensAt: next.hours.start,
-      dayLabel: "heute",
-    };
-  }
-
-  // After closing / closed day: show closed state with next open hint,
-  // or countdown if next is soon (tomorrow).
-  if (rel === "morgen" && next.at.getTime() - now.getTime() < 18 * 60 * 60 * 1000) {
-    return {
-      kind: "until_open",
-      ms: next.at.getTime() - now.getTime(),
-      opensAt: next.hours.start,
-      dayLabel: "morgen",
+      dayLabel: rel === "heute" ? "heute" : "morgen",
     };
   }
 
@@ -121,7 +175,7 @@ export function openCountdownAt(now: Date): OpenCountdown {
 }
 
 export function formatDurationAt(ms: number): string {
-  const totalMins = Math.max(0, Math.round(ms / 60000));
+  const totalMins = Math.max(0, Math.round(ms / 60_000));
   const h = Math.floor(totalMins / 60);
   const m = totalMins % 60;
   if (h <= 0) return `${m} Min.`;
