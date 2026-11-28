@@ -26,9 +26,10 @@ import {
 import ShoppingList from "@/components/ShoppingList";
 import TimeWheelPicker from "@/components/TimeWheelPicker";
 import {
-  formatHoursAt,
-  sumShiftHours,
-} from "@/lib/attendance";
+  formatDurationAt,
+  openCountdownAt,
+  type OpenCountdown,
+} from "@/lib/countdown";
 import {
   isClosedDay,
   openingHoursFor,
@@ -66,8 +67,9 @@ export default function RozpisApp() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [whoId, setWhoId] = useState<number | null>(null);
-  /** null = Alle Kollegen (no attendance totals). */
+  /** null = Alle Kollegen. */
   const [filterPersonId, setFilterPersonId] = useState<number | null>(null);
+  const [clock, setClock] = useState(() => new Date());
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
   const [editCode, setEditCode] = useState("");
@@ -218,10 +220,13 @@ export default function RozpisApp() {
   }, [state, filterPersonId]);
 
   const who = state?.people.find((p) => p.id === whoId) ?? null;
-  const filterPerson =
-    filterPersonId == null
-      ? null
-      : (state?.people.find((p) => p.id === filterPersonId) ?? null);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setClock(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const countdown = useMemo(() => openCountdownAt(clock), [clock]);
 
   function mutateHeaders(): HeadersInit {
     return {
@@ -318,14 +323,6 @@ export default function RozpisApp() {
     localStorage.setItem(FILTER_KEY, id == null ? "all" : String(id));
     if (id != null) pickWho(id);
   }
-
-  const monthHours = useMemo(() => {
-    if (filterPersonId == null) return null;
-    const mine = (state?.shifts ?? []).filter(
-      (s) => s.person_id === filterPersonId,
-    );
-    return sumShiftHours(mine);
-  }, [state, filterPersonId]);
 
   function shiftMonth(delta: number) {
     const d = new Date(year, month + delta, 1);
@@ -629,11 +626,11 @@ export default function RozpisApp() {
 
   return (
     <div className="app-shell mx-auto min-h-screen w-full px-3.5 pb-10 pt-5">
-      <header className="anim-rise mb-4">
+      <header className="anim-rise mb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="eyebrow mb-1.5">Restaurant Fitz</p>
-            <h1 className="brand-title text-[clamp(2.6rem,13vw,3.6rem)]">
+            <p className="eyebrow mb-1">Restaurant Fitz</p>
+            <h1 className="brand-title text-[clamp(2.4rem,12vw,3.2rem)]">
               FitzTeam
             </h1>
           </div>
@@ -646,59 +643,15 @@ export default function RozpisApp() {
           </button>
         </div>
         {state?.sampleMode ? (
-          <p className="mt-2 text-sm text-[var(--gold)]">Beispieldaten (lokal)</p>
+          <p className="mt-1.5 text-sm text-[var(--gold)]">Beispieldaten (lokal)</p>
         ) : null}
       </header>
 
-      <section className="action-grid anim-rise mb-4">
-        <button
-          type="button"
-          className="btn btn-accent"
-          onClick={() => setModal({ type: "shopping" })}
-        >
-          Einkauf
-        </button>
-        <button
-          type="button"
-          className="btn btn-reserve"
-          onClick={() => setModal({ type: "reservation" })}
-        >
-          Reservierung
-        </button>
-        <button
-          type="button"
-          className="btn btn-leave"
-          onClick={() => setModal({ type: "leave" })}
-          disabled={(state?.people.length ?? 0) === 0}
-        >
-          Frei
-        </button>
-        <button
-          type="button"
-          className="btn btn-team"
-          onClick={() => setModal({ type: "people" })}
-        >
-          Team
-        </button>
-      </section>
-
-      {!loading && (state?.people.length ?? 0) === 0 ? (
-        <div className="surface-quiet mb-4 px-4 py-3 text-sm text-[var(--ink-soft)]">
-          Noch keine Kollegen. Öffne{" "}
-          <button
-            type="button"
-            className="font-semibold text-[var(--gold)] underline"
-            onClick={() => setModal({ type: "people" })}
-          >
-            Team
-          </button>{" "}
-          und lege den ersten Namen an.
-        </div>
-      ) : null}
+      <CountdownBanner countdown={countdown} />
 
       {error ? (
         <div
-          className="mb-4 rounded-xl border border-[var(--danger)]/35 bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] px-3 py-2 text-sm text-[#ffd4d4]"
+          className="mb-3 rounded-xl border border-[var(--danger)]/35 bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] px-3 py-2 text-sm text-[#ffd4d4]"
           role="alert"
         >
           {error}
@@ -713,7 +666,7 @@ export default function RozpisApp() {
       ) : null}
 
       <section className="surface calendar-surface anim-rise p-3 sm:p-4">
-        <div className="calendar-nav mb-2 flex items-center justify-between gap-2">
+        <div className="calendar-nav mb-1 flex items-center justify-between gap-2">
           <button
             type="button"
             className="btn btn-ghost"
@@ -758,16 +711,6 @@ export default function RozpisApp() {
                 {p.name.split(" ")[0]}
               </button>
             ))}
-          </div>
-        ) : null}
-
-        {filterPerson && monthHours != null ? (
-          <div className="attendance-card" aria-live="polite">
-            <div className="label">Stunden · {monthTitle(year, month)}</div>
-            <div className="value">{formatHoursAt(monthHours)}</div>
-            <p className="hint">
-              {filterPerson.name} — Summe aus eingetragenen Schichten
-            </p>
           </div>
         ) : null}
 
@@ -895,44 +838,63 @@ export default function RozpisApp() {
         {loading ? (
           <p className="mt-3 text-sm text-[var(--ink-muted)]">Lade…</p>
         ) : null}
-        <div className="legend" aria-label="Legende">
-          <span className="legend-item">
-            <span className="legend-dot" style={{ background: "var(--work)" }} />
-            Arbeit
-          </span>
-          <span className="legend-item">
-            <span
-              className="legend-dot"
-              style={{ background: "var(--reserve)" }}
-            />
-            Reservierung
-          </span>
-          <span className="legend-item">
-            <span
-              className="legend-dot"
-              style={{ background: "var(--free-day)" }}
-            />
-            Frei
-          </span>
-          <span className="legend-item">
-            <span
-              className="legend-dot"
-              style={{ background: "rgba(243, 235, 224, 0.35)" }}
-            />
-            zu = geschlossen
-          </span>
-        </div>
-        <p className="mt-3 text-[0.72rem] leading-relaxed text-[var(--ink-muted)]">
-          {OPENING_HOURS_SUMMARY}
+        <p className="calendar-footnote">
+          zu = geschlossen · {OPENING_HOURS_SUMMARY}
         </p>
       </section>
 
-      <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-          <h3 className="section-title text-xl">Reservierungen</h3>
+      <nav className="action-row anim-rise mt-3" aria-label="Aktionen">
+        <button
+          type="button"
+          className="action-pill"
+          onClick={() => setModal({ type: "shopping" })}
+        >
+          Einkauf
+        </button>
+        <button
+          type="button"
+          className="action-pill"
+          onClick={() => setModal({ type: "reservation" })}
+        >
+          Reservierung
+        </button>
+        <button
+          type="button"
+          className="action-pill"
+          onClick={() => setModal({ type: "leave" })}
+          disabled={(state?.people.length ?? 0) === 0}
+        >
+          Frei
+        </button>
+        <button
+          type="button"
+          className="action-pill"
+          onClick={() => setModal({ type: "people" })}
+        >
+          Team
+        </button>
+      </nav>
+
+      {!loading && (state?.people.length ?? 0) === 0 ? (
+        <div className="surface-quiet mt-3 px-4 py-3 text-sm text-[var(--ink-soft)]">
+          Noch keine Kollegen. Tippe auf{" "}
           <button
             type="button"
-            className="btn btn-primary px-3 py-2 text-sm"
+            className="font-semibold text-[var(--gold)] underline"
+            onClick={() => setModal({ type: "people" })}
+          >
+            Team
+          </button>
+          .
+        </div>
+      ) : null}
+
+      <section className="anim-rise mt-5 surface-quiet p-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <h3 className="section-title text-lg">Reservierungen</h3>
+          <button
+            type="button"
+            className="btn btn-ghost px-3 py-2 text-sm"
             disabled={!unlocked}
             onClick={() => setModal({ type: "reservation" })}
           >
@@ -1002,8 +964,8 @@ export default function RozpisApp() {
         </ul>
       </section>
 
-      <section className="anim-rise mt-5 surface p-4 sm:mt-6 sm:p-5">
-        <h3 className="section-title mb-4 text-xl">Abwesenheiten</h3>
+      <section className="anim-rise mt-4 surface-quiet p-4">
+        <h3 className="section-title mb-3 text-lg">Abwesenheiten</h3>
         <ul className="flex flex-col gap-2.5">
           {(state?.leave ?? []).length === 0 ? (
             <li className="text-sm text-[var(--ink-muted)]">
@@ -1133,6 +1095,42 @@ export default function RozpisApp() {
         onError={setError}
       />
     </div>
+  );
+}
+
+function CountdownBanner({ countdown }: { countdown: OpenCountdown }) {
+  if (countdown.kind === "until_open") {
+    const when =
+      countdown.dayLabel === "heute"
+        ? `Öffnung ${countdown.opensAt}`
+        : countdown.dayLabel === "morgen"
+          ? `Öffnung morgen ${countdown.opensAt}`
+          : `Öffnung ${countdown.dayLabel} ${countdown.opensAt}`;
+    return (
+      <section className="status-banner status-open anim-rise mb-3" aria-live="polite">
+        <p className="status-kicker">Bis zur Arbeit</p>
+        <p className="status-value">{formatDurationAt(countdown.ms)}</p>
+        <p className="status-hint">{when}</p>
+      </section>
+    );
+  }
+  if (countdown.kind === "until_close") {
+    return (
+      <section className="status-banner status-work anim-rise mb-3" aria-live="polite">
+        <p className="status-kicker">Noch geöffnet</p>
+        <p className="status-value">{formatDurationAt(countdown.ms)}</p>
+        <p className="status-hint">Schluss {countdown.closesAt}</p>
+      </section>
+    );
+  }
+  return (
+    <section className="status-banner status-closed anim-rise mb-3" aria-live="polite">
+      <p className="status-kicker">Geschlossen</p>
+      <p className="status-value">
+        {countdown.nextLabel ? `öffnet ${countdown.nextLabel}` : "—"}
+      </p>
+      <p className="status-hint">Restaurant Fitz</p>
+    </section>
   );
 }
 

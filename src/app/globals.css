@@ -374,37 +374,104 @@ a {
   color: var(--gold);
 }
 
-.attendance-card {
-  margin-bottom: 0.85rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--work) 32%, transparent);
-  background: color-mix(in srgb, var(--work) 12%, transparent);
-  animation: rise-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+.status-banner {
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
 }
 
-.attendance-card .label {
+.status-banner.status-open {
+  border-color: color-mix(in srgb, var(--gold) 36%, transparent);
+  background: color-mix(in srgb, var(--gold) 10%, var(--panel));
+}
+
+.status-banner.status-work {
+  border-color: color-mix(in srgb, var(--work) 40%, transparent);
+  background: color-mix(in srgb, var(--work) 12%, var(--panel));
+}
+
+.status-banner.status-closed {
+  border-color: var(--line);
+  opacity: 0.92;
+}
+
+.status-kicker {
+  margin: 0;
   font-size: 0.68rem;
   font-weight: 650;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-muted);
 }
 
-.attendance-card .value {
-  margin-top: 0.2rem;
+.status-value {
+  margin: 0.2rem 0 0;
   font-family: var(--font-display);
-  font-size: 1.45rem;
+  font-size: clamp(1.45rem, 6vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: #d9ffe8;
   line-height: 1.1;
+  color: var(--ink);
 }
 
-.attendance-card .hint {
-  margin-top: 0.2rem;
-  font-size: 0.78rem;
+.status-work .status-value {
+  color: #d9ffe8;
+}
+
+.status-open .status-value {
+  color: var(--gold);
+}
+
+.status-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
   color: var(--ink-soft);
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.action-pill {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 0.45rem 0.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.action-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.action-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.action-pill:active {
+  transform: scale(0.97);
+}
+
+.calendar-footnote {
+  margin: 0.65rem 0 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--ink-muted);
 }
 
 .time-wheel {
